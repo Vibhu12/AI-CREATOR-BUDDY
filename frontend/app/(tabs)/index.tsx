@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import Svg, { Circle, Defs, LinearGradient as SvgGrad, Stop } from 'react-native-svg';
 import { colors, spacing, radius, fmtCurrency, fmtCompact, fmtPercent } from '@/src/theme/tokens';
 import { api } from '@/src/services/api';
@@ -102,6 +103,7 @@ function RecCard({ rec }: { rec: any }) {
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const router = useRouter();
 
   const load = useCallback(async () => {
     try { setData(await api.dashboard()); } catch (e) { console.warn(e); }
@@ -191,6 +193,41 @@ export default function Dashboard() {
             ))}
           </View>
         )}
+
+        {/* Quick actions: Strategy & Competitors */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Take action</Text>
+          <View style={styles.quickRow}>
+            <Pressable
+              onPress={() => router.push('/strategy')}
+              style={styles.quickCard}
+              testID="quick-strategy"
+            >
+              <View style={[styles.quickIcon, { backgroundColor: colors.brandTertiary }]}>
+                <Ionicons name="map" size={18} color={colors.brand} />
+              </View>
+              <Text style={styles.quickTitle}>Strategy Planner</Text>
+              <Text style={styles.quickSub}>AI 30 / 60 / 90-day roadmaps</Text>
+              <View style={styles.quickArrow}>
+                <Ionicons name="arrow-forward" size={14} color={colors.brand} />
+              </View>
+            </Pressable>
+            <Pressable
+              onPress={() => router.push('/competitors')}
+              style={styles.quickCard}
+              testID="quick-competitors"
+            >
+              <View style={[styles.quickIcon, { backgroundColor: 'rgba(127,179,255,0.12)' }]}>
+                <Ionicons name="trophy" size={18} color="#7FB3FF" />
+              </View>
+              <Text style={styles.quickTitle}>Top 1% Benchmark</Text>
+              <Text style={styles.quickSub}>See your gaps vs the best</Text>
+              <View style={styles.quickArrow}>
+                <Ionicons name="arrow-forward" size={14} color="#7FB3FF" />
+              </View>
+            </Pressable>
+          </View>
+        </View>
 
         {/* Metric grid */}
         <View style={styles.section}>
@@ -332,4 +369,18 @@ const styles = StyleSheet.create({
   },
   recPillText: { color: colors.brand, fontSize: 11, fontWeight: '700' },
   recConfidence: { color: colors.onSurfaceTertiary, fontSize: 11, fontWeight: '500' },
+
+  quickRow: { flexDirection: 'row', gap: spacing.md },
+  quickCard: {
+    flex: 1,
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border,
+    minHeight: 130,
+  },
+  quickIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  quickTitle: { color: colors.onSurface, fontSize: 14, fontWeight: '600', marginTop: spacing.md, letterSpacing: -0.2 },
+  quickSub: { color: colors.onSurfaceSecondary, fontSize: 12, marginTop: 4 },
+  quickArrow: { marginTop: spacing.md, alignSelf: 'flex-start' },
 });

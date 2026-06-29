@@ -30,13 +30,20 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field
 from starlette.middleware.cors import CORSMiddleware
 
+# Load env BEFORE local imports — auth/integrations/strategy read os.environ at import.
+ROOT_DIR = Path(__file__).parent
+load_dotenv(ROOT_DIR / ".env")
+
 from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
+
+from auth import make_auth_router, ensure_indexes
+from competitors import make_competitors_router
+from integrations import make_integrations_router
+from strategy import make_strategy_router
 
 # ---------------------------------------------------------------------------
 # Setup
 # ---------------------------------------------------------------------------
-ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / ".env")
 
 mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
@@ -501,6 +508,11 @@ async def chat_reset(session_id: str):
 # ---------------------------------------------------------------------------
 # Lifecycle + middleware
 # ---------------------------------------------------------------------------
+auth_router, _ = make_auth_router(db)
+api.include_router(auth_router)
+api.include_router(make_integrations_router())
+api.include_router(make_competitors_router())
+api.include_router(make_strategy_router(db, EMERGENT_LLM_KEY))
 app.include_router(api)
 
 app.add_middleware(
@@ -515,6 +527,7 @@ app.add_middleware(
 @app.on_event("startup")
 async def on_startup():
     await seed_if_empty()
+    await ensure_indexes(db)
 
 
 @app.on_event("shutdown")

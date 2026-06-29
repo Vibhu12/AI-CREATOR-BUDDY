@@ -1,28 +1,35 @@
-# CreatorOS — Product Requirements (MVP v1)
+# CreatorOS — Product Requirements (v2: + Auth, Strategy, Competitors, Real APIs)
 
 ## Vision
-An AI-native business operating system for digital creators, solopreneurs, and personal brands. CreatorOS is the always-on CEO + CFO + growth strategist in your pocket.
+An AI-native business operating system for digital creators, solopreneurs, and personal brands.
 
-## MVP scope (this release)
-- **Smart AI Dashboard** with hero Business Health score (87/100), sub-scores (Growth, Financial, Content, Brand), top-of-funnel metric grid (Revenue MTD, Profit, Margin, Audience), live alerts (viral content, opportunity unlock), and a horizontally-scrolling AI Recommendation carousel.
-- **Portfolio Management** across 6 platforms (YouTube, Instagram, TikTok, Course, Newsletter, Podcast) with revenue, AI score, follower reach, sparkline trend.
-- **Financial Intelligence** with 30-day revenue line chart (gold gradient area), profit/expense/forecast/runway cards, and recent transactions.
-- **AI Coach** — streaming chat powered by Claude Sonnet 4.5 via Emergent Universal Key. System prompt is rich with Maya's business context so suggestions are quantified and concrete.
-- **Profile** with active goal tracking (revenue, subscribers, launch, content), top viral content this month, and account settings.
+## v2 additions (this release)
+- **Emergent Google Auth** — sign-in gate at `/login`, 7-day session tokens, AuthContext + route gate. All `/api/*` calls send `Authorization: Bearer <token>`.
+- **Top 1% Benchmark** (`/competitors`) — radar chart (Consistency / Content / Monetization / Brand / Engagement) showing You vs Top 1% vs Industry Avg, plus ranked Gap analysis bars (Revenue, Audience, Reach, Cadence, etc).
+- **AI Strategy Planner** (`/strategy`) — Claude Sonnet 4.5 generates structured 30/60/90-day roadmaps with North Star metric, KPIs, phased milestones, weekly tasks, risks, and leading indicators. Plans persist to MongoDB and are browsable as history.
+- **YouTube Data API** integration — `GET /api/integrations/youtube/channel?handle=X` returns live channel stats (subscribers, views, videos). Gracefully returns 503 with friendly message when `YOUTUBE_API_KEY` not configured.
+- **Stripe** integration — `GET /api/integrations/stripe/status` checks live balance + 5 recent charges via `stripe-python`. Returns `{connected: bool, mode: "test"|"live", ...}`. Reports auth errors gracefully when key is invalid.
+- **Profile** shows current Google user (name, picture, email), connected integrations status (Stripe / YouTube), goals, top content, and sign-out.
 
-## Tech stack
-- Frontend: Expo SDK 54, expo-router file-based routing, react-native-svg (charts/sparklines), expo-blur (glass tab bar), expo-linear-gradient.
-- Backend: FastAPI + Motor + MongoDB. Endpoints prefixed `/api`. SSE streaming for AI chat.
-- AI: `emergentintegrations` LlmChat with `anthropic/claude-sonnet-4-5-20250929`.
-- Theme: "Dark-First Utility" — obsidian (#050505), warm amber accent (#E3A72F). No blue/purple/indigo. Phosphor-style outline icons.
+## v1 (still present)
+- Smart AI Dashboard, Portfolio, Finance, AI Coach (Claude streaming chat) — all now behind auth.
 
-## Demo data
-Seeded persona: **Maya Chen** — creator with $56k MTD revenue, 184k YouTube subs, 92k IG, Ship It course ($24k/cohort), newsletter, podcast, TikTok. Realistic numbers so the dashboard feels alive on first open.
+## Tech additions
+- Backend: `httpx` (Emergent session exchange + YouTube), `stripe` (sk_test_emergent dev key).
+- Frontend: `expo-web-browser` + `expo-linking` + `expo-secure-store` for OAuth.
+- Modular FastAPI sub-routers: `auth.py`, `competitors.py`, `strategy.py`, `integrations.py`.
 
-## What's NOT in MVP (next iteration candidates)
-- Live integrations (YouTube/IG/Stripe APIs) — currently uses curated seed data
-- Auth (single demo user for now)
-- Light theme toggle, push notifications, competitor benchmarking, strategy planner
+## Architecture notes
+- `load_dotenv()` runs BEFORE local imports so sub-routers can read env at module import.
+- TTL index on `user_sessions.expires_at` so expired sessions auto-purge.
+- Auth uses Bearer header (not cookies) — required for React Native.
+- Stripe SDK is sync; wrapped via `run_in_executor` so it never blocks the event loop.
+
+## What's still NOT in scope
+- Real per-user data isolation (everyone signed in sees the Maya persona — intentional for demo; next phase will scope assets/goals by `user_id`)
+- Instagram Graph OAuth (heavy lift, deferred)
+- Custom YouTube key onboarding UI (env var only)
+- Light theme toggle, push notifications
 
 ## Smart business enhancement
-The AI Coach context window includes the user's full business data so recommendations are concrete ($-quantified, action-tied). This is the moat — the Coach answers like a co-founder who already read your books, not a generic chatbot.
+**The "Top 1% Benchmark" radar is the share-bait moment.** Creators love showing how they stack against the best — this single screen turns CreatorOS from "personal dashboard" into "creator status symbol", driving organic growth via screenshots shared on X/IG. We use synthetic archetypal personas (no real handles) so there's no IP exposure.
