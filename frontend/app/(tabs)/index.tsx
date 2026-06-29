@@ -197,7 +197,7 @@ export default function Dashboard() {
           <Text style={styles.sectionTitle}>This month</Text>
           <View style={styles.metricGrid}>
             {data.metrics.map((m: any) => (
-              <MetricCard key={m.key} {...m} />
+              <MetricCard key={m.key} label={m.label} value={m.value} delta={m.delta} format={m.format} />
             ))}
           </View>
         </View>
