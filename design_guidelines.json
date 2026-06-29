@@ -1,0 +1,164 @@
+{
+  "app_name": "CreatorOS",
+  "personality": "7 Dark-First Utility",
+  "personality_one_liner": "A sleek, command-center dashboard for digital CEOs, prioritizing operational clarity and financial intelligence with a premium, data-dense dark-mode aesthetic.",
+  "color": {
+    "surface": "#050505",
+    "onSurface": "#FAFAFA",
+    "surfaceSecondary": "#121212",
+    "onSurfaceSecondary": "#A3A3A3",
+    "surfaceTertiary": "#1C1C1C",
+    "onSurfaceTertiary": "#8A8A8A",
+    "surfaceInverse": "#FAFAFA",
+    "onSurfaceInverse": "#050505",
+    "brand": "#E3A72F",
+    "brandPrimary": "#E3A72F",
+    "onBrandPrimary": "#050505",
+    "brandSecondary": "#F4C970",
+    "onBrandSecondary": "#050505",
+    "brandTertiary": "#3A2B0E",
+    "onBrandTertiary": "#E3A72F",
+    "success": "#45C97A",
+    "onSuccess": "#050505",
+    "warning": "#FFB224",
+    "onWarning": "#050505",
+    "error": "#E5484D",
+    "onError": "#FAFAFA",
+    "info": "#A3A3A3",
+    "onInfo": "#050505",
+    "border": "#1A1A1A",
+    "borderStrong": "#2A2A2A",
+    "divider": "#141414"
+  },
+  "typography": {
+    "displayFontFamily": "Barlow Condensed",
+    "textFontFamily": "Satoshi",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24,
+      "3xl": 36
+    }
+  },
+  "spacing": {
+    "rule": "Dense but clear. Use md (12px) between stacked metrics, and lg (16px) between major dashboard sections. Generous padding inside cards (lg) to let data breathe.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": "0",
+  "navigation": "bottom_tabs",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": true,
+    "do's": [
+      "Use heavy glassmorphism for the bottom tab bar to allow scrolling content to bleed through.",
+      "Use subtle glass for the hero AI Score floating card if it overlays the dark abstract texture.",
+      "Apply glass to sticky table headers when viewing long lists of portfolio assets."
+    ],
+    "dont's": [
+      "Never blur standard metric cards or list items; keep data crisp on solid surfaceSecondary.",
+      "Avoid glass behind small text inputs."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Dashboard (Home)",
+      "purpose": "The ultimate CEO overview, combining high-level revenue metrics, AI opportunity scoring, and actionable insights.",
+      "states": {
+        "loading": "Centered sleek spinner using brand color.",
+        "empty": "N/A - dashboard populates with zero-state placeholders if no data.",
+        "error": "Minimal text 'Unable to load telemetry' with a subtle retry icon."
+      },
+      "layout": "Header: 'Overview' title with an elegant greeting. Hero Section: A large, rich AI Business Health Score visualization (progress ring or gauge) sitting on a subtle dark texture background. Underneath: A 2-column grid of essential metrics (Revenue, Profit, Followers, Growth) using Barlow Condensed for huge numbers. Below that: A horizontally scrolling list of AI Recommendation Cards (brandTertiary tinted, priority tagged)."
+    },
+    {
+      "name": "Portfolio Management",
+      "purpose": "Track health and profitability across all business assets (YouTube, IG, SaaS, Courses).",
+      "states": {
+        "loading": "Skeleton list rows.",
+        "empty": "Illustration of an empty folder. 'Connect your first platform.' with Primary CTA.",
+        "error": "Error loading assets. Tap to retry."
+      },
+      "layout": "Sticky header for total portfolio value. Below: A stacked list of platforms. Each row contains: Left: Real PNG logo of the platform (YouTube, IG) in a subtle circular container. Middle: Asset name and AI Score. Right: Revenue and trend sparkline."
+    },
+    {
+      "name": "Financial Intelligence",
+      "purpose": "Deep dive into cash flow, revenue trends, and forecasts.",
+      "states": {
+        "loading": "Graph skeleton pulsing softly.",
+        "empty": "Connect bank/Stripe to view intelligence.",
+        "error": "Data synchronization failed."
+      },
+      "layout": "Top half: A sleek, glowing line chart (using success/warning colors based on trend) against a pure black background. Segmented control to switch between 1W/1M/1Y. Bottom half: Split panel showing Cash Flow vs. Expenses, followed by recent high-value transactions."
+    },
+    {
+      "name": "AI Consultant",
+      "purpose": "A chat-based AI coach for strategic decisions and content ideas.",
+      "states": {
+        "loading": "AI typing indicator (three pulsing dots).",
+        "empty": "A greeting from the AI with 3 suggestion chips ('Analyze my growth', 'Draft Q3 strategy', 'Review latest video').",
+        "error": "Network error. Reconnect to AI core."
+      },
+      "layout": "Chat interface. AI messages in surfaceSecondary bubbles, User messages in brandTertiary bubbles. Input field sticky at bottom with a floating send button. Very Apple Messages but dark/fintech vibe."
+    }
+  ],
+  "images": {
+    "hero_ai_score_bg": {
+      "url": "https://images.pexels.com/photos/30263578/pexels-photo-30263578.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "alt": "Dark textured luxury background for AI score"
+    },
+    "youtube_logo_transparent": {
+      "url": "https://images.pexels.com/photos/33440446/pexels-photo-33440446.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "alt": "YouTube platform logo"
+    },
+    "instagram_logo_transparent": {
+      "url": "https://images.pexels.com/photos/20716655/pexels-photo-20716655.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "alt": "Instagram platform logo"
+    }
+  },
+  "haptics": {
+    "events": {
+      "tab_press": "light",
+      "button_primary": "medium",
+      "toggle_switch": "light",
+      "chart_scrub": "selection",
+      "ai_suggestion_tap": "light"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Strictly follow the Dark-First Utility personality: heavy use of dark obsidian, crisp borders (0.5pt), and data-dense but breathable layouts. Absolutely NO blue, purple, or indigo.",
+    "For the Hero AI Score on the Dashboard, use a beautiful, large metric display (Barlow Condensed font) layered over the 'hero_ai_score_bg' image. YOU MUST apply the vertical gradient scrim (transparent to surface color) over the image so text stays readable.",
+    "Use Phosphor icons consistently. Keep them outlined unless active in the tab bar.",
+    "For the portfolio list, use the provided YouTube/IG image URLs as avatars. Since they are photographic, apply a subtle border and clip them into circles (radius: pill). If image loading fails, fallback to standard text initials or vector icons.",
+    "Financial charts should be built with minimal gridlines. Rely on typography and glowing accent colors (success/error/brand) for data storytelling.",
+    "Implement the sticky primary CTA pattern where applicable (e.g., adding a new asset in Portfolio).",
+    "Keep typography weights at 400 or 500 maximum. Let the large sizes of Barlow Condensed create the visual hierarchy.",
+    "Tab bar must have glassmorphism applied so scrolling lists gently disappear behind it.",
+    "Every icon must be consistent in weight. Do not mix filled and outlined icons on the same screen (except tab active states)."
+  ]
+}
