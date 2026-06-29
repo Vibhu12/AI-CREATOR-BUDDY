@@ -24,10 +24,6 @@ function RadarChart({ dimensions }: { dimensions: any[] }) {
       const a = angle(i);
       return `${cx + Math.cos(a) * r},${cy + Math.sin(a) * r}`;
     }).join(' ');
-    Array.from({ length: n }, (_, i) => {
-      const a = angle(i);
-      return `${cx + Math.cos(a) * r},${cy + Math.sin(a) * r}`;
-    }).join(' ');
   const dataPoly = (key: 'you' | 'top_1' | 'industry_avg') =>
     dimensions.map((d, i) => point(i, d[key]).join(',')).join(' ');
 
