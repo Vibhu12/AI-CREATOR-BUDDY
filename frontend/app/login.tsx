@@ -34,11 +34,11 @@ export default function Login() {
           </Text>
 
           <Text style={styles.purpose}>
-            Every creator hits a ceiling because their business lives across ten places — revenue in Stripe, audience in YouTube, ideas in Notion, taxes in a spreadsheet.
+            Revenue, audiences, content, and AI tools — unified into one live score.
           </Text>
 
           <Text style={styles.purposeStrong}>
-            CreatorOS pulls it all into one live score, benchmarks you against the top 1%, and hands you an AI co-founder that tells you exactly what to change next.
+            Benchmarked against the top 1%. Guided by an AI co-founder that tells you exactly what to change next.
           </Text>
         </View>
 
