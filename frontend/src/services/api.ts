@@ -52,6 +52,14 @@ export const api = {
 
   // Auth
   me: () => authFetch(`/api/auth/me`).then(json),
+
+  // Onboarding
+  onboardingStatus:   () => authFetch(`/api/onboarding/status`).then(json),
+  onboardingComplete: (youtube_handle?: string) => authFetch(`/api/onboarding/complete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ youtube_handle }),
+  }).then(json),
 };
 
 export { getToken };

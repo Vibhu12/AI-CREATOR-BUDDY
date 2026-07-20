@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage, StreamDone, TextDelta
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 log = logging.getLogger("creatoros.strategy")
@@ -52,23 +52,27 @@ STRATEGY_SYSTEM = (
 )
 
 
-def make_strategy_router(db, api_key: str):
+def make_strategy_router(db, api_key: str, current_user):
     router = APIRouter(prefix="/strategy", tags=["strategy"])
 
     @router.get("/plans")
-    async def list_plans():
-        plans = await db.strategy_plans.find({}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    async def list_plans(user: dict = Depends(current_user)):
+        plans = await db.strategy_plans.find(
+            {"user_id": user["user_id"]}, {"_id": 0}
+        ).sort("created_at", -1).to_list(50)
         return {"items": plans}
 
     @router.get("/plans/{plan_id}")
-    async def get_plan(plan_id: str):
-        plan = await db.strategy_plans.find_one({"id": plan_id}, {"_id": 0})
+    async def get_plan(plan_id: str, user: dict = Depends(current_user)):
+        plan = await db.strategy_plans.find_one(
+            {"id": plan_id, "user_id": user["user_id"]}, {"_id": 0}
+        )
         if not plan:
             raise HTTPException(404, "plan not found")
         return plan
 
     @router.post("/plans")
-    async def generate(req: StrategyRequest):
+    async def generate(req: StrategyRequest, user: dict = Depends(current_user)):
         if req.horizon_days not in (30, 60, 90):
             raise HTTPException(400, "horizon_days must be 30, 60, or 90")
         if not api_key:
@@ -93,7 +97,6 @@ def make_strategy_router(db, api_key: str):
             elif isinstance(ev, StreamDone):
                 break
         raw = "".join(chunks).strip()
-        # Strip code fences if model wrapped JSON in them
         if raw.startswith("```"):
             raw = raw.strip("`")
             if raw.startswith("json"):
@@ -107,13 +110,15 @@ def make_strategy_router(db, api_key: str):
 
         plan = {
             "id": str(uuid.uuid4()),
+            "user_id": user["user_id"],
             "horizon_days": req.horizon_days,
             "focus": req.focus,
             "created_at": now_utc().isoformat(),
             **data,
         }
         await db.strategy_plans.insert_one({**plan})
-        # Re-fetch with projection so _id is gone
-        return await db.strategy_plans.find_one({"id": plan["id"]}, {"_id": 0})
+        return await db.strategy_plans.find_one(
+            {"id": plan["id"], "user_id": user["user_id"]}, {"_id": 0}
+        )
 
     return router

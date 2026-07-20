@@ -19,9 +19,19 @@ function Gate() {
 
   useEffect(() => {
     if (loading) return;
-    const inAuth = segments[0] === 'login';
-    if (!user && !inAuth) router.replace('/login');
-    else if (user && inAuth) router.replace('/(tabs)');
+    const first = segments[0] as string | undefined;
+    const inAuth = first === 'login';
+    const inOnboarding = first === 'onboarding';
+    if (!user) {
+      if (!inAuth) router.replace('/login');
+      return;
+    }
+    // Signed-in
+    if (!user.onboarding_complete && !inOnboarding) {
+      router.replace('/onboarding');
+    } else if (user.onboarding_complete && (inAuth || inOnboarding)) {
+      router.replace('/(tabs)');
+    }
   }, [loading, user, segments, router]);
 
   if (loading) {

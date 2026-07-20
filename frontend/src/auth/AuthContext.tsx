@@ -13,13 +13,14 @@ import * as SecureStore from 'expo-secure-store';
 const BASE = process.env.EXPO_PUBLIC_BACKEND_URL;
 const TOKEN_KEY = 'creatoros_session_token';
 
-type User = { user_id: string; email: string; name: string; picture?: string };
+type User = { user_id: string; email: string; name: string; picture?: string; onboarding_complete?: boolean; youtube_handle?: string | null };
 type AuthState = {
   loading: boolean;
   user: User | null;
   token: string | null;
   signIn: () => Promise<{ ok: boolean; reason?: string }>;
   signOut: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 };
 
 const AuthCtx = createContext<AuthState | null>(null);
@@ -152,8 +153,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, [token]);
 
+  const refreshUser = useCallback(async () => {
+    if (!token) return;
+    const r = await fetch(`${BASE}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+    if (r.ok) {
+      const data = await r.json();
+      setUser(data.user);
+    }
+  }, [token]);
+
   return (
-    <AuthCtx.Provider value={{ loading, user, token, signIn, signOut }}>
+    <AuthCtx.Provider value={{ loading, user, token, signIn, signOut, refreshUser }}>
       {children}
     </AuthCtx.Provider>
   );

@@ -5,12 +5,9 @@ Endpoints (mounted under /api):
   GET  /auth/me               → current user from Authorization: Bearer
   POST /auth/logout           → revoke session
 
-Frontend flow:
-  1. open https://auth.emergentagent.com/?redirect=<encoded redirect_url>
-  2. on return, parse session_id from URL hash or query
-  3. call /api/auth/session with {session_id}
-  4. backend hits demobackend.emergentagent.com → upserts user + session, returns user + token
-  5. store token; send as Bearer on every request
+Also exposes `make_get_current_user(db)` — a FastAPI dependency factory that
+resolves the Bearer token to the current user document. Use it as
+`user: dict = Depends(current_user)` on any protected route.
 """
 from __future__ import annotations
 
@@ -19,7 +16,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import httpx
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 
 EMERGENT_SESSION_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
@@ -38,7 +35,7 @@ class SessionExchange(BaseModel):
     session_id: str
 
 
-def make_auth_router(db):
+def make_auth_router(db, on_new_user=None):
     router = APIRouter(prefix="/auth", tags=["auth"])
 
     async def _resolve_token(authorization: Optional[str]) -> dict:
@@ -73,6 +70,7 @@ def make_auth_router(db):
             raise HTTPException(502, "Malformed auth response")
 
         existing = await db.users.find_one({"email": email}, {"_id": 0})
+        is_new = existing is None
         if existing:
             user_id = existing["user_id"]
             await db.users.update_one(
@@ -86,6 +84,8 @@ def make_auth_router(db):
                 "email": email,
                 "name": name,
                 "picture": picture,
+                "onboarding_complete": False,
+                "youtube_handle": None,
                 "created_at": now_utc(),
                 "updated_at": now_utc(),
             })
@@ -101,10 +101,16 @@ def make_auth_router(db):
             upsert=True,
         )
 
-        return {
-            "token": session_token,
-            "user": {"user_id": user_id, "email": email, "name": name, "picture": picture},
-        }
+        # First-time hook — seed starter data
+        if is_new and on_new_user is not None:
+            try:
+                await on_new_user(user_id)
+            except Exception:
+                pass
+
+        # Fetch the fresh user doc (includes onboarding flags)
+        user_doc = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+        return {"token": session_token, "user": user_doc}
 
     @router.get("/me")
     async def me(authorization: Optional[str] = Header(None)):
@@ -119,7 +125,10 @@ def make_auth_router(db):
         await db.user_sessions.delete_one({"session_token": token})
         return {"ok": True}
 
-    return router, _resolve_token
+    async def _current_user(authorization: Optional[str] = Header(None)) -> dict:
+        return await _resolve_token(authorization)
+
+    return router, _current_user
 
 
 async def ensure_indexes(db):
