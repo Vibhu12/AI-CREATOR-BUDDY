@@ -34,7 +34,11 @@ export default function Login() {
           </Text>
 
           <Text style={styles.purpose}>
-            Track your revenue, benchmark against the top 1%, and generate growth plans — all from one place.
+            Every creator hits a ceiling because their business lives across ten places — revenue in Stripe, audience in YouTube, ideas in Notion, taxes in a spreadsheet.
+          </Text>
+
+          <Text style={styles.purposeStrong}>
+            CreatorOS pulls it all into one live score, benchmarks you against the top 1%, and hands you an AI co-founder that tells you exactly what to change next.
           </Text>
         </View>
 
@@ -89,10 +93,18 @@ const styles = StyleSheet.create({
   },
   purpose: {
     color: colors.onSurfaceSecondary,
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 21,
     marginTop: spacing.md,
     maxWidth: 340,
+  },
+  purposeStrong: {
+    color: colors.onSurface,
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: spacing.md,
+    maxWidth: 340,
+    fontWeight: '500',
   },
 
   bottom: { paddingBottom: spacing.md, gap: spacing.sm },
