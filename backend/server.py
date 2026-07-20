@@ -409,6 +409,10 @@ async def root():
 async def dashboard(user: dict = Depends(current_user)):
     assets = await db.assets.find({"user_id": user["user_id"]}, PROJECTION).to_list(100)
     recs = await db.recommendations.find({"user_id": user["user_id"]}, PROJECTION).to_list(100)
+    # Rank recommendations by priority tier then impact descending so newer high-impact
+    # items surface even when added after the initial seed.
+    _priority_rank = {"high": 0, "medium": 1, "low": 2}
+    recs.sort(key=lambda r: (_priority_rank.get(r.get("priority"), 3), -int(r.get("impact") or 0)))
     revenue_mtd = sum(a.get("revenue_mtd", 0) for a in assets)
     profit_mtd = sum(a.get("profit_mtd", 0) for a in assets)
     followers_total = sum(a.get("followers", 0) for a in assets)

@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="8" failures="0" skipped="0" tests="12" time="2.640" timestamp="2026-07-20T22:31:30.367218+00:00" hostname="agent-env-c8883bcd-4d5d-4273-b8c9-8e29adcb8fbc"><testcase classname="backend.tests.test_v7_rec_ordering" name="test_dashboard_top4_titles_in_correct_order" time="0.166" /><testcase classname="backend.tests.test_v7_rec_ordering" name="test_dashboard_top3_are_all_high_priority" time="0.112" /><testcase classname="backend.tests.test_v7_rec_ordering" name="test_bundle_notion_appears_in_top4" time="0.108" /><testcase classname="backend.tests.test_v6_reseed" name="test_reseed_requires_auth" time="0.101" /><testcase classname="backend.tests.test_v6_reseed" name="test_reseed_returns_ok_and_user_id" time="0.006"><error message="failed on setup with &quot;RuntimeError: Event loop is closed&quot;">backend/tests/test_v6_reseed.py:103: in users
+    b_id, b_tok = event_loop.run_until_complete(_mk_user(mongo, "b", seed=True))
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend/tests/test_v6_reseed.py:89: in _mk_user
+    await seed_user_starter(user_id)
+backend/server.py:312: in seed_user_starter
+    if await db.assets.count_documents({"user_id": user_id}) &gt; 0:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/motor/metaprogramming.py:74: in method
+    return framework.run_on_executor(
+/root/.venv/lib/python3.11/site-packages/motor/frameworks/asyncio/__init__.py:85: in run_on_executor
+    return loop.run_in_executor(_EXECUTOR, functools.partial(fn, *args, **kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:817: in run_in_executor
+    self._check_closed()
+/usr/local/lib/python3.11/asyncio/base_events.py:520: in _check_closed
+    raise RuntimeError('Event loop is closed')
+E   RuntimeError: Event loop is closed</error></testcase><testcase classname="backend.tests.test_v6_reseed" name="test_reseed_counts_all_collections" time="0.000"><error message="failed on setup with &quot;RuntimeError: Event loop is closed&quot;">backend/tests/test_v6_reseed.py:103: in users
+    b_id, b_tok = event_loop.run_until_complete(_mk_user(mongo, "b", seed=True))
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend/tests/test_v6_reseed.py:89: in _mk_user
+    await seed_user_starter(user_id)
+backend/server.py:312: in seed_user_starter
+    if await db.assets.count_documents({"user_id": user_id}) &gt; 0:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/motor/metaprogramming.py:74: in method
+    return framework.run_on_executor(
+/root/.venv/lib/python3.11/site-packages/motor/frameworks/asyncio/__init__.py:85: in run_on_executor
+    return loop.run_in_executor(_EXECUTOR, functools.partial(fn, *args, **kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:817: in run_in_executor
+    self._check_closed()
+/usr/local/lib/python3.11/asyncio/base_events.py:520: in _check_closed
+    raise RuntimeError('Event loop is closed')
+E   RuntimeError: Event loop is closed</error></testcase><testcase classname="backend.tests.test_v6_reseed" name="test_reseed_includes_new_affiliate_and_digital_assets" time="0.000"><error message="failed on setup with &quot;RuntimeError: Event loop is closed&quot;">backend/tests/test_v6_reseed.py:103: in users
+    b_id, b_tok = event_loop.run_until_complete(_mk_user(mongo, "b", seed=True))
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend/tests/test_v6_reseed.py:89: in _mk_user
+    await seed_user_starter(user_id)
+backend/server.py:312: in seed_user_starter
+    if await db.assets.count_documents({"user_id": user_id}) &gt; 0:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/motor/metaprogramming.py:74: in method
+    return framework.run_on_executor(
+/root/.venv/lib/python3.11/site-packages/motor/frameworks/asyncio/__init__.py:85: in run_on_executor
+    return loop.run_in_executor(_EXECUTOR, functools.partial(fn, *args, **kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:817: in run_in_executor
+    self._check_closed()
+/usr/local/lib/python3.11/asyncio/base_events.py:520: in _check_closed
+    raise RuntimeError('Event loop is closed')
+E   RuntimeError: Event loop is closed</error></testcase><testcase classname="backend.tests.test_v6_reseed" name="test_portfolio_total_matches_expected" time="0.000"><error message="failed on setup with &quot;RuntimeError: Event loop is closed&quot;">backend/tests/test_v6_reseed.py:103: in users
+    b_id, b_tok = event_loop.run_until_complete(_mk_user(mongo, "b", seed=True))
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend/tests/test_v6_reseed.py:89: in _mk_user
+    await seed_user_starter(user_id)
+backend/server.py:312: in seed_user_starter
+    if await db.assets.count_documents({"user_id": user_id}) &gt; 0:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/motor/metaprogramming.py:74: in method
+    return framework.run_on_executor(
+/root/.venv/lib/python3.11/site-packages/motor/frameworks/asyncio/__init__.py:85: in run_on_executor
+    return loop.run_in_executor(_EXECUTOR, functools.partial(fn, *args, **kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:817: in run_in_executor
+    self._check_closed()
+/usr/local/lib/python3.11/asyncio/base_events.py:520: in _check_closed
+    raise RuntimeError('Event loop is closed')
+E   RuntimeError: Event loop is closed</error></testcase><testcase classname="backend.tests.test_v6_reseed" name="test_recommendations_has_7_with_new_titles" time="0.000"><error message="failed on setup with &quot;RuntimeError: Event loop is closed&quot;">backend/tests/test_v6_reseed.py:103: in users
+    b_id, b_tok = event_loop.run_until_complete(_mk_user(mongo, "b", seed=True))
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend/tests/test_v6_reseed.py:89: in _mk_user
+    await seed_user_starter(user_id)
+backend/server.py:312: in seed_user_starter
+    if await db.assets.count_documents({"user_id": user_id}) &gt; 0:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/motor/metaprogramming.py:74: in method
+    return framework.run_on_executor(
+/root/.venv/lib/python3.11/site-packages/motor/frameworks/asyncio/__init__.py:85: in run_on_executor
+    return loop.run_in_executor(_EXECUTOR, functools.partial(fn, *args, **kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:817: in run_in_executor
+    self._check_closed()
+/usr/local/lib/python3.11/asyncio/base_events.py:520: in _check_closed
+    raise RuntimeError('Event loop is closed')
+E   RuntimeError: Event loop is closed</error></testcase><testcase classname="backend.tests.test_v6_reseed" name="test_dashboard_metrics_and_recs" time="0.000"><error message="failed on setup with &quot;RuntimeError: Event loop is closed&quot;">backend/tests/test_v6_reseed.py:103: in users
+    b_id, b_tok = event_loop.run_until_complete(_mk_user(mongo, "b", seed=True))
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend/tests/test_v6_reseed.py:89: in _mk_user
+    await seed_user_starter(user_id)
+backend/server.py:312: in seed_user_starter
+    if await db.assets.count_documents({"user_id": user_id}) &gt; 0:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/motor/metaprogramming.py:74: in method
+    return framework.run_on_executor(
+/root/.venv/lib/python3.11/site-packages/motor/frameworks/asyncio/__init__.py:85: in run_on_executor
+    return loop.run_in_executor(_EXECUTOR, functools.partial(fn, *args, **kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:817: in run_in_executor
+    self._check_closed()
+/usr/local/lib/python3.11/asyncio/base_events.py:520: in _check_closed
+    raise RuntimeError('Event loop is closed')
+E   RuntimeError: Event loop is closed</error></testcase><testcase classname="backend.tests.test_v6_reseed" name="test_reseed_is_user_scoped" time="0.000"><error message="failed on setup with &quot;RuntimeError: Event loop is closed&quot;">backend/tests/test_v6_reseed.py:103: in users
+    b_id, b_tok = event_loop.run_until_complete(_mk_user(mongo, "b", seed=True))
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend/tests/test_v6_reseed.py:89: in _mk_user
+    await seed_user_starter(user_id)
+backend/server.py:312: in seed_user_starter
+    if await db.assets.count_documents({"user_id": user_id}) &gt; 0:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/motor/metaprogramming.py:74: in method
+    return framework.run_on_executor(
+/root/.venv/lib/python3.11/site-packages/motor/frameworks/asyncio/__init__.py:85: in run_on_executor
+    return loop.run_in_executor(_EXECUTOR, functools.partial(fn, *args, **kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:817: in run_in_executor
+    self._check_closed()
+/usr/local/lib/python3.11/asyncio/base_events.py:520: in _check_closed
+    raise RuntimeError('Event loop is closed')
+E   RuntimeError: Event loop is closed</error></testcase><testcase classname="backend.tests.test_v6_reseed" name="test_reseed_wipes_prior_custom_assets_for_self" time="0.001"><error message="failed on setup with &quot;RuntimeError: Event loop is closed&quot;">backend/tests/test_v6_reseed.py:103: in users
+    b_id, b_tok = event_loop.run_until_complete(_mk_user(mongo, "b", seed=True))
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend/tests/test_v6_reseed.py:89: in _mk_user
+    await seed_user_starter(user_id)
+backend/server.py:312: in seed_user_starter
+    if await db.assets.count_documents({"user_id": user_id}) &gt; 0:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/motor/metaprogramming.py:74: in method
+    return framework.run_on_executor(
+/root/.venv/lib/python3.11/site-packages/motor/frameworks/asyncio/__init__.py:85: in run_on_executor
+    return loop.run_in_executor(_EXECUTOR, functools.partial(fn, *args, **kwargs))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/asyncio/base_events.py:817: in run_in_executor
+    self._check_closed()
+/usr/local/lib/python3.11/asyncio/base_events.py:520: in _check_closed
+    raise RuntimeError('Event loop is closed')
+E   RuntimeError: Event loop is closed</error></testcase></testsuite></testsuites>

@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radius, platformMeta } from '@/src/theme/tokens';
 import { api } from '@/src/services/api';
 
-const PLATFORMS = ['youtube', 'instagram', 'tiktok', 'course', 'newsletter', 'podcast', 'saas'];
+const PLATFORMS = ['youtube', 'instagram', 'tiktok', 'course', 'newsletter', 'podcast', 'saas', 'affiliate', 'digital'];
 
 export function AddAssetModal({
   visible,
