@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import Svg, { Circle, Defs, LinearGradient as SvgGrad, Stop } from 'react-native-svg';
 import { colors, spacing, radius, fmtCurrency, fmtCompact, fmtPercent } from '@/src/theme/tokens';
 import { api } from '@/src/services/api';
+import { NotificationsModal } from '@/src/components/NotificationsModal';
 
 type DashboardData = any;
 
@@ -103,13 +104,22 @@ function RecCard({ rec }: { rec: any }) {
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [showNotifs, setShowNotifs] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const router = useRouter();
+
+  const loadNotifs = useCallback(async () => {
+    try {
+      const r = await api.notifications();
+      setUnreadCount(r.unread);
+    } catch {}
+  }, []);
 
   const load = useCallback(async () => {
     try { setData(await api.dashboard()); } catch (e) { console.warn(e); }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); loadNotifs(); }, [load, loadNotifs]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -133,9 +143,13 @@ export default function Dashboard() {
             <Text style={styles.headerKicker}>OVERVIEW</Text>
             <Text style={styles.headerTitle} testID="dashboard-greeting">{data.greeting}</Text>
           </View>
-          <Pressable style={styles.notifBtn} testID="notifications-btn">
+          <Pressable
+            style={styles.notifBtn}
+            onPress={() => setShowNotifs(true)}
+            testID="notifications-btn"
+          >
             <Ionicons name="notifications-outline" size={20} color={colors.onSurface} />
-            <View style={styles.notifDot} />
+            {unreadCount > 0 && <View style={styles.notifDot} />}
           </Pressable>
         </View>
       </SafeAreaView>
@@ -254,6 +268,11 @@ export default function Dashboard() {
           </ScrollView>
         </View>
       </ScrollView>
+
+      <NotificationsModal
+        visible={showNotifs}
+        onClose={() => { setShowNotifs(false); loadNotifs(); }}
+      />
     </View>
   );
 }

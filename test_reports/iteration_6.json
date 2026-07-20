@@ -1,0 +1,48 @@
+{
+  "summary": "v5 bug-fixes + expanded seed — ALL GREEN. Backend: 13/13 pytest passed in /app/backend/tests/test_v5_notifications.py — (a) GET /api/notifications returns 401 without Bearer; POST /notifications/{id}/read and /notifications/read-all both 401 without Bearer; (b) For a fresh user seeded via seed_user_starter, GET /api/notifications returns items.length=6 and unread=6, each item has id/kind/title/body/read=false/at; (c) POST /notifications/{id}/read on an unread item returns {ok:true}, follow-up GET reflects read=true and unread decrements by 1; unknown id → 404; (d) POST /notifications/read-all returns {ok:true, updated:N} and follow-up GET shows unread=0 with all items read; (e) User-scoping — user A attempting to mark user B's notification returns 404 and B's unread count is untouched; (f) Expanded starter seed counts verified in Mongo scoped to user_id — assets=6, goals=4, content=4, recommendations=4, notifications=6, chat_messages=4 (session_id ends '::maya-default-session', roles alternate user/assistant), strategy_plans=1 (title contains '30-Day Revenue Acceleration', task_progress={'0.weekly_tasks.0':true,'0.weekly_tasks.1':true}, progress_pct=16.7); (g) GET /api/ai/chat/history?session_id=maya-default-session for the fresh user returns the 4 seeded messages (first=user, second=assistant); (h) Portfolio regression — POST /api/portfolio with a new asset succeeds and asset_count increments by 1. Frontend (mobile viewport 390x844): BUG FIX #1 — Dashboard bell (testID notifications-btn) tap opens notifications-modal; the modal shows all 6 seeded rows (testID notification-{id}); tapping a row clears its unread dot and decrements the count via optimistic UI + POST /notifications/{id}/read; 'Mark all read' (notifications-mark-all) hides itself when unread=0 and all rows lose their dots; 'Close' (notifications-close) dismisses the modal. BUG FIX #2 — Portfolio plus icon (add-asset-btn) opens add-asset-modal (bottom-sheet); platform chip row shows 7 chips (platform-chip-youtube/instagram/tiktok/course/newsletter/podcast/saas); selecting platform-chip-tiktok + filling asset-name-input='TEST_UI_v5_asset', asset-category-input='Short-form', asset-revenue-input='500', asset-followers-input='1200', then tapping asset-submit-btn creates the asset via POST /api/portfolio, closes the modal, and the portfolio list refreshes from '6 assets' → '7 assets' with the new row visible showing 'TikTok · 1.2k reach · AI 70' and '$500'. add-asset-close dismisses without saving. Regression: /, /coach (shows the 4 seeded chat messages on first load — 'Ship It' pricing thread + '$10k MRR in 30 days' YouTube thread present), /finance, /profile, /competitors, /strategy, /pricing all render without red-screen or console errors. Only warning is the pre-existing benign pointerEvents deprecation (carryover from iter_3/4/5). No new deprecated Expo packages.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "Pressable (rn-web, carryover)", "issue": "Pre-existing 'props.pointerEvents is deprecated. Use style.pointerEvents' console warning — non-blocking, not v5-introduced. Reference: (tabs)/*.tsx Pressables."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v5_notifications.py",
+    "/app/test_reports/pytest/pytest_v5.xml"
+  ],
+  "action_items": [
+    "OPTIONAL cleanup: purge v5 synthetic UI session after testing: db.user_sessions.delete_many({session_token:'ui-v5-bugfix-token'}); db.users.delete_many({user_id:'user_ui_v5_bugfix'}); and cascade delete on assets/goals/content/recommendations/notifications/chat_messages/strategy_plans by that user_id.",
+    "OPTIONAL (carryover): migrate remaining Pressable/View usages of the deprecated pointerEvents prop to style.pointerEvents."
+  ],
+  "critical_code_review_comments": [
+    "server.py:505-531 — Notification endpoints correctly scope every query with user_id (find, update_one, update_many). mark_notification_read returns 404 on r.matched_count==0, ensuring cross-tenant writes surface as 404 not silent-noop. Correct.",
+    "server.py:317-326 — seed_user_starter inserts notifications with read=false and back-dated 'at' via now - timedelta(hours=n['_offset_hours']); ordering by 'at' desc in GET returns most-recent-first. Correct.",
+    "server.py:328-337 — chat_messages seed uses scoped_session = f'{user_id}::maya-default-session'; this matches the same convention used in POST /ai/chat (line 598), so the seeded messages appear when the frontend fetches /ai/chat/history?session_id=maya-default-session. Correct.",
+    "server.py:338-346 — strategy_plans seed pre-populates task_progress={'0.weekly_tasks.0':true,'0.weekly_tasks.1':true} and progress_pct=16.7; matches strategy.py _count_tasks math (2/12 = 16.67%). Correct.",
+    "NotificationsModal.tsx:48-58 — Optimistic UI: markOne/markAll update local state first, then fire-and-forget the API call inside try/catch that swallows errors silently. If the network call fails, client and server desync until modal reopen. Consider surfacing a toast on error. Low priority for MVP.",
+    "NotificationsModal.tsx:64 — animationType uses 'slide' on iOS and 'fade' on Android/web. Fine; on web preview the fade avoids Modal-slide glitches.",
+    "AddAssetModal.tsx:35-57 — submit() disables re-entry via busy flag and calls onCreated() + onClose() only on success; err state shown on failure. Correct.",
+    "AddAssetModal.tsx:44 — profit_mtd is hard-coded to revenue*0.75 which is a reasonable default when the user only enters revenue. Consider exposing profit as a separate field later. Low priority.",
+    "index.tsx:272 / portfolio.tsx:108 — both bell and plus icons now have onPress handlers wired to setState open flags, and the modals are conditionally rendered with visible={open} + onClose={()=>setOpen(false)}. Correct fix for the reported bug.",
+    "No hardcoded URLs — all API calls go through api service using EXPO_PUBLIC_BACKEND_URL. Correct."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v5_notifications.py (new — 13 tests, auth + scoping + seed shape + AI history + portfolio POST regression)",
+    "/app/test_reports/pytest/pytest_v5.xml (junit output)"
+  ],
+  "success_rate": {
+    "backend": "100% (13/13 v5 tests)",
+    "frontend": "100% — both bug fixes verified end-to-end (bell opens notifications modal with 6 items and mark-read/mark-all/close all work; plus opens add-asset modal, submitting creates a new asset via POST /api/portfolio and portfolio count goes 6→7)"
+  },
+  "seed_data_creation": "Backend test fixture creates ephemeral users user_v5_a_* and user_v5_b_* (each with 1-day tokens and starter seed) and cleans them up on teardown. For UI testing, one persistent synthetic user was seeded: user_id='user_ui_v5_bugfix', session_token='ui-v5-bugfix-token', name='Vera V5', onboarding_complete=true, youtube_handle='veratube', instagram_handle='veragram', tier='free' — with full starter seed (6 assets, 4 goals, 4 content, 4 recs, 6 notifications, 4 chat messages, 1 strategy plan). During UI test one additional asset was created ('TEST_UI_v5_asset', tiktok) so live asset count is now 7 — cleanup command in action_items removes everything.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "v5 bug fixes (notifications modal + add-asset modal) and expanded seed data are fully verified. Notification endpoints follow the same auth + user_id scoping pattern as the rest of the v3/v4 stack. Reused UI token 'ui-v5-bugfix-token' bound to user_ui_v5_bugfix in Mongo — refresh TTL if reusing: db.user_sessions.update_one({session_token:'ui-v5-bugfix-token'},{'$set':{'expires_at': now+1d}}). Playwright pattern: goto /login FIRST → localStorage.setItem('creatoros_session_token','ui-v5-bugfix-token') → goto target route (do NOT rely on page.reload() — AuthProvider races with localStorage). All 13 v5 tests + prior 16 v4 + 26 v3 tests remain valid regression coverage. No known outstanding bugs.",
+  "rca_of_issue": "Original bugs (bell + plus icons non-functional) were caused by missing onPress handlers on the TouchableOpacity wrappers in index.tsx and portfolio.tsx — they were pure visual buttons with no state hookup. Fix wired them to open React Native <Modal> bottom-sheets (NotificationsModal / AddAssetModal), both with testIDs on every interactive element. Backend gained 3 new notification endpoints (list/mark-one/mark-all), and seed_user_starter was expanded to also insert notifications, chat_messages (scoped session), and a strategy plan so the wow-moment is preserved for a fresh sign-in. Verified: both icons now open their modals, seeded data appears immediately, mark-read + create-asset round-trip to backend and persist. No defects found."
+}

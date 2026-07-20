@@ -24,10 +24,20 @@ const json = async (r: Response) => {
 export const api = {
   dashboard:       () => authFetch(`/api/dashboard`).then(json),
   portfolio:       () => authFetch(`/api/portfolio`).then(json),
+  createAsset:     (body: any) => authFetch(`/api/portfolio`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then(json),
   content:         () => authFetch(`/api/content`).then(json),
   finance:         () => authFetch(`/api/finance`).then(json),
   goals:           () => authFetch(`/api/goals`).then(json),
   recommendations: () => authFetch(`/api/recommendations`).then(json),
+
+  // Notifications
+  notifications:      () => authFetch(`/api/notifications`).then(json),
+  markNotification:   (id: string) => authFetch(`/api/notifications/${id}/read`, { method: 'POST' }).then(json),
+  markAllNotifications: () => authFetch(`/api/notifications/read-all`, { method: 'POST' }).then(json),
 
   chatHistory: (session_id: string) => authFetch(`/api/ai/chat/history?session_id=${session_id}`).then(json),
   chatReset:   (session_id: string) => authFetch(`/api/ai/chat/reset?session_id=${session_id}`, { method: 'POST' }).then(json),

@@ -177,6 +177,118 @@ STARTER_RECS: List[dict] = [
 ]
 
 
+STARTER_NOTIFICATIONS: List[dict] = [
+    {"kind": "viral", "title": "YouTube video crossed 400k views",
+     "body": "'I tried to build a $10k MRR SaaS in 30 days' hit 412k views — schedule a follow-up while momentum's high.",
+     "_offset_hours": 3, "priority": "high"},
+    {"kind": "opportunity", "title": "Ship It waitlist hit 612",
+     "body": "You have 612 warm leads. At $499 × 12% conversion, that's $36.6k. Open enrollment in the next 7 days.",
+     "_offset_hours": 5, "priority": "high"},
+    {"kind": "insight", "title": "AI Coach flagged pricing gap",
+     "body": "Claude analyzed 3 cohorts — recommends raising Ship It to $589. Est. impact: +$11.2k per cohort.",
+     "_offset_hours": 26, "priority": "high"},
+    {"kind": "warning", "title": "Instagram engagement dropped 12%",
+     "body": "Last 6 posts averaged 4.8% engagement vs 5.5% baseline. Hook analysis in Coach.",
+     "_offset_hours": 32, "priority": "medium"},
+    {"kind": "revenue", "title": "Stripe payout: $8,420.50",
+     "body": "Ship It cohort #4 settled. Next payout scheduled Friday.",
+     "_offset_hours": 40, "priority": "low"},
+    {"kind": "streak", "title": "3-week posting streak on YouTube",
+     "body": "Consistency score jumped +6 points to 88. Keep it going.",
+     "_offset_hours": 68, "priority": "low"},
+]
+
+
+STARTER_CHAT: List[dict] = [
+    {"role": "user", "text": "What's the fastest lever I can pull this week?",
+     "_offset_minutes": 90},
+    {"role": "assistant",
+     "text": ("Raise Ship It's price to $589 before Friday's launch. Three signals:\n\n"
+              "• Waitlist is at 612 — 3.4× last cohort's converting demand\n"
+              "• Last 3 cohorts sold out at $499 with zero pricing objections\n"
+              "• Your closest comp (Cohort Capital) charges $749 for comparable scope\n\n"
+              "Estimated impact: +$11.2k on cohort #5 alone. Do it today, announce Wednesday."),
+     "_offset_minutes": 88},
+    {"role": "user", "text": "What should I ship on YouTube this month?",
+     "_offset_minutes": 60},
+    {"role": "assistant",
+     "text": ("Your top performer this quarter is the '$10k MRR in 30 days' format — 412k views, 11.2% CTR, 2.4× your channel average. Ship two more in that lane:\n\n"
+              "1. 'I tried to fix an ugly SaaS in 7 days' — teardown format, high hook density\n"
+              "2. 'Solo dev vs $50k competitor' — David-vs-Goliath, high emotion\n\n"
+              "Publish Tue + Thu. Keep hooks under 5s. I'll review your thumbnails when they're ready."),
+     "_offset_minutes": 58},
+]
+
+
+STARTER_PLAN: dict = {
+    "title": "30-Day Revenue Acceleration Playbook",
+    "summary": "Turn Ship It waitlist momentum into a $78k month by shipping YouTube volume and repricing the course.",
+    "horizon_days": 30,
+    "north_star": {"metric": "Monthly Revenue", "target": "$78,400 (+38% vs $56.7k baseline)"},
+    "kpis": [
+        {"label": "Ship It cohort #5 enrollments", "target": "95 students at $589 (+$11.2k)"},
+        {"label": "YouTube RPM", "target": "$8.50 (+15% via mid-roll optimization)"},
+        {"label": "Newsletter → course conversion", "target": "4.2% (960 opens → 40 enrollments)"},
+        {"label": "TikTok → YouTube funnel", "target": "6.8% weighted cross-platform CTR"},
+    ],
+    "phases": [
+        {
+            "window": "Days 1-10",
+            "theme": "Reprice + reload the funnel",
+            "milestones": [
+                "Update Ship It landing page to $589 with grandfather clause",
+                "Ship YouTube video #1 (teardown format, 400k+ target)",
+                "Send waitlist a 'price change coming' warning email",
+            ],
+            "weekly_tasks": [
+                "Rewrite Ship It sales page top-half with new positioning",
+                "Record + edit YouTube video #1 (Tues drop)",
+                "Draft cohort #5 launch sequence (5 emails)",
+                "Update Stripe + Gumroad prices in sync",
+            ],
+            "risk": "Pricing pushback from waitlist — mitigate with grandfathered rate for early sign-ups.",
+        },
+        {
+            "window": "Days 11-20",
+            "theme": "Launch cohort #5 with paid amplification",
+            "milestones": [
+                "Open Ship It #5 enrollment publicly",
+                "Ship YouTube video #2 (David-vs-Goliath format)",
+                "First $2k in paid ads → warm YouTube audiences",
+            ],
+            "weekly_tasks": [
+                "Launch email #1 to waitlist (Monday 9am ET)",
+                "Publish YouTube video #2 (Thursday)",
+                "Set up Meta Ads retargeting from YouTube channel",
+                "Post 3 Twitter threads reinforcing course value",
+            ],
+            "risk": "Ad account newness may throttle spend — start at $150/day, scale to $500 over 7 days.",
+        },
+        {
+            "window": "Days 21-30",
+            "theme": "Close strong + rebuild pipeline",
+            "milestones": [
+                "Hit 95 enrollments (95 × $589 = $55.9k)",
+                "Newsletter sponsor tier goes live",
+                "Cohort #5 kick-off + first live session",
+            ],
+            "weekly_tasks": [
+                "Close cart with 48-hour last-call sequence",
+                "Publish sponsor kit + reach out to 5 target brands",
+                "Batch-record next 4 YouTube episodes",
+                "Analyze cohort data → seed content ideas for month 2",
+            ],
+            "risk": "Content burnout — schedule a 3-day break in week 4 after cart closes.",
+        },
+    ],
+    "leading_indicators": [
+        "Waitlist → cart page CTR above 22%",
+        "YouTube subscriber velocity above +2.4k/week",
+        "Newsletter open rate stays above 46%",
+    ],
+}
+
+
 async def seed_user_starter(user_id: str) -> None:
     """Copy the starter template into a new user's namespace."""
     if await db.assets.count_documents({"user_id": user_id}) > 0:
@@ -202,6 +314,36 @@ async def seed_user_starter(user_id: str) -> None:
         {**r, "id": str(uuid.uuid4()), "user_id": user_id}
         for r in STARTER_RECS
     ])
+    await db.notifications.insert_many([
+        {
+            **{k: v for k, v in n.items() if k != "_offset_hours"},
+            "id": str(uuid.uuid4()),
+            "user_id": user_id,
+            "read": False,
+            "at": (now_utc() - timedelta(hours=n["_offset_hours"])).isoformat(),
+        }
+        for n in STARTER_NOTIFICATIONS
+    ])
+    scoped_session = f"{user_id}::maya-default-session"
+    await db.chat_messages.insert_many([
+        {
+            **{k: v for k, v in m.items() if k != "_offset_minutes"},
+            "id": str(uuid.uuid4()),
+            "user_id": user_id,
+            "session_id": scoped_session,
+            "at": (now_utc() - timedelta(minutes=m["_offset_minutes"])).isoformat(),
+        }
+        for m in STARTER_CHAT
+    ])
+    await db.strategy_plans.insert_one({
+        **STARTER_PLAN,
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "focus": None,
+        "created_at": now_utc().isoformat(),
+        "task_progress": {"0.weekly_tasks.0": True, "0.weekly_tasks.1": True},
+        "progress_pct": 16.7,
+    })
     log.info("seeded starter data for %s", user_id)
 
 
@@ -357,6 +499,36 @@ async def create_goal(payload: GoalIn, user: dict = Depends(current_user)):
 async def get_recs(user: dict = Depends(current_user)):
     items = await db.recommendations.find({"user_id": user["user_id"]}, PROJECTION).to_list(200)
     return {"items": items}
+
+
+# --- Notifications --------------------------------------------------------
+@api.get("/notifications")
+async def get_notifications(user: dict = Depends(current_user)):
+    items = await db.notifications.find(
+        {"user_id": user["user_id"]}, PROJECTION,
+    ).sort("at", -1).to_list(100)
+    unread = sum(1 for i in items if not i.get("read"))
+    return {"items": items, "unread": unread}
+
+
+@api.post("/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: str, user: dict = Depends(current_user)):
+    r = await db.notifications.update_one(
+        {"id": notification_id, "user_id": user["user_id"]},
+        {"$set": {"read": True}},
+    )
+    if r.matched_count == 0:
+        raise HTTPException(404, "notification not found")
+    return {"ok": True}
+
+
+@api.post("/notifications/read-all")
+async def mark_all_read(user: dict = Depends(current_user)):
+    r = await db.notifications.update_many(
+        {"user_id": user["user_id"]},
+        {"$set": {"read": True}},
+    )
+    return {"ok": True, "updated": r.modified_count}
 
 
 # --- Onboarding ------------------------------------------------------------

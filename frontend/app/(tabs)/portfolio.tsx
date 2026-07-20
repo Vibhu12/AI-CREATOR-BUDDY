@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Svg, { Polyline } from 'react-native-svg';
 import { colors, spacing, radius, fmtCurrency, fmtCompact, platformMeta } from '@/src/theme/tokens';
 import { api } from '@/src/services/api';
+import { AddAssetModal } from '@/src/components/AddAssetModal';
 
 function Sparkline({ data, color }: { data: number[]; color: string }) {
   if (!data?.length) return null;
@@ -51,6 +52,7 @@ function AssetRow({ asset }: { asset: any }) {
 export default function Portfolio() {
   const [data, setData] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
 
   const load = useCallback(async () => {
     try { setData(await api.portfolio()); } catch (e) { console.warn(e); }
@@ -69,7 +71,11 @@ export default function Portfolio() {
             <Text style={styles.kicker}>PORTFOLIO</Text>
             <Text style={styles.title}>{data.asset_count} assets</Text>
           </View>
-          <Pressable style={styles.addBtn} testID="add-asset-btn">
+          <Pressable
+            style={styles.addBtn}
+            onPress={() => setShowAdd(true)}
+            testID="add-asset-btn"
+          >
             <Ionicons name="add" size={20} color={colors.onBrandPrimary} />
           </Pressable>
         </View>
@@ -98,6 +104,12 @@ export default function Portfolio() {
       >
         {data.assets.map((a: any) => <AssetRow key={a.id} asset={a} />)}
       </ScrollView>
+
+      <AddAssetModal
+        visible={showAdd}
+        onClose={() => setShowAdd(false)}
+        onCreated={load}
+      />
     </View>
   );
 }
