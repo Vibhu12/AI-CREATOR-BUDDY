@@ -1,0 +1,43 @@
+{
+  "summary": "v8 auto-seed on /api/dashboard + /api/portfolio VERIFIED — 11/11 GREEN. Fresh authed user with zero rows hitting GET /api/dashboard triggers seed_user_starter automatically → revenue_mtd=$66,460.50, 4 recommendations returned (top-4 order unchanged: YouTube long-form, Ship It +18%, Bundle Notion, Diversify affiliate), and Mongo populated with the full Maya baseline (assets=8, recs=7, goals=4, notifications=6, content=4, chat_messages=4, strategy_plans=1). Same guarantee holds when a different fresh user calls GET /api/portfolio first (asset_count=8, total_revenue_mtd=$66,460.50). Idempotency verified: 4 repeat dashboard hits leave counts unchanged and rec titles/order identical. User compositions verified: POST /api/portfolio after auto-seed yields 9 assets (8 Maya + 1 custom) with total_revenue = $66,460.50 + custom.revenue_mtd, and both Maya-specific rows (Amazon+ConvertKit Affiliate, Notion Templates — Gumroad) remain. Per-user isolation holds: user A's auto-seed leaves B untouched (0 rows); B triggering later gets an independent copy with disjoint UUIDs. Auth gate intact: both endpoints return 401 without Bearer and with an invalid Bearer, confirming seed_user_starter runs INSIDE the endpoint AFTER current_user dependency. Other endpoints (/goals, /content, /recommendations, /notifications) still return empty for a truly fresh user — only /dashboard and /portfolio act as auto-seed front doors, as intended. Regression: POST /api/dev/reseed still works (returns {ok:true,user_id}, wipes and reseeds to counts=8/4/4/7/6/4/1); dashboard rec ordering still correct (priority tier then impact desc). No new bugs. Same pre-existing warnings carry over (FastAPI on_event deprecation, expo pointerEvents warning — both non-blocking, not v8-introduced).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v8_autoseed.py",
+    "/app/test_reports/pytest/pytest_v8.xml"
+  ],
+  "action_items": [
+    "None — v8 auto-seed fix verified. Ready for user validation on Overview and Portfolio tabs.",
+    "OPTIONAL cleanup: test fixtures wipe their own ephemeral user_v8_* users + sessions + scoped collections on teardown; no residue expected in Mongo.",
+    "OPTIONAL (carryover): FastAPI @app.on_event('startup'/'shutdown') is deprecated — migrate to lifespan handlers in server.py:724,729.",
+    "OPTIONAL (carryover): expo 'props.pointerEvents deprecated' console warning — non-blocking."
+  ],
+  "critical_code_review_comments": [
+    "server.py:414 — GET /api/dashboard now calls `await seed_user_starter(user['user_id'])` BEFORE reading assets/recs. Idempotent guard at seed_user_starter:313 (`if await db.assets.count_documents({user_id})>0: return`) ensures no duplicate rows on repeat calls. Correct.",
+    "server.py:456 — GET /api/portfolio mirror of dashboard: same one-line auto-seed at top. Correct.",
+    "server.py:311-313 — Idempotency key is `assets.count_documents({user_id})>0`. This means if a user somehow has assets but is missing goals/recs/etc (partial seed), the function will NOT top up the missing collections. Not a regression from this change, but worth flagging: any user whose assets survived but whose other collections were wiped will remain in a partial state. Not observed in tests; noted for main agent awareness.",
+    "server.py:410,455 — seed_user_starter runs AFTER Depends(current_user) resolves, so unauth requests short-circuit to 401 before touching Mongo. Verified with 2 tests (no bearer, bad bearer). Correct.",
+    "No hardcoded URLs; tests read EXPO_PUBLIC_BACKEND_URL/MONGO_URL/DB_NAME from env. All 11 tests use ephemeral user_v8_* users with teardown."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v8_autoseed.py (new — 11 targeted tests covering the 8 review-request scenarios + 2 regression + 1 auth-bad-token)",
+    "/app/test_reports/pytest/pytest_v8.xml (junit output — 11 passed in 3.07s)"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 v8 auto-seed) + regression: v6 9/9 pass in isolation, v7 3/3 pass in isolation",
+    "frontend": "Not tested — problem statement is backend-only per review_request.testing_type='backend only'"
+  },
+  "seed_data_creation": "All fixtures create ephemeral users user_v8_{dash,port,idem,add,iso_a,iso_b,other,reseed,order}_* with matching v8-token-* sessions. Each test's `finally` block runs _cleanup() which deletes rows from users, user_sessions, and all 7 scoped collections (assets, goals, content, recommendations, notifications, chat_messages, strategy_plans) filtered by user_id. No persistent seed data left behind by v8.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "v8 auto-seed on GET /api/dashboard and GET /api/portfolio is live and verified. Any authed user's first call to either endpoint triggers seed_user_starter (idempotent). Fresh-user contract: GET /api/dashboard → revenue $66,460.50 + 4 top-sorted recs; GET /api/portfolio → asset_count=8, total_revenue_mtd=$66,460.50. Other authed GET endpoints (/goals, /content, /recommendations, /notifications) do NOT auto-seed and return [] for a fresh user. UI persistent test session (user_ui_v7 / token 'ui-v7-token') still valid from iteration_8 for any future Playwright work. Pre-existing pytest cross-file collection error when running test_v6+test_v7 together (both define module-scoped `event_loop`) — run each file individually or add unique fixture names if consolidating.",
+  "rca_of_issue": "N/A — this iteration was a targeted feature verification, not a bug fix. The one-line insertion of `await seed_user_starter(user['user_id'])` at the top of both handlers correctly leverages the existing idempotent seeder to solve the user request: 'I want maya data on overview and portfolio tabs as well by default. Once user adds anything it updates.' Verified end-to-end: fresh dashboard/portfolio call → Maya baseline appears; user additions via POST /api/portfolio compose on top (not replace) because seed_user_starter early-returns once assets exist."
+}

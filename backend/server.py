@@ -308,7 +308,8 @@ STARTER_PLAN: dict = {
 
 
 async def seed_user_starter(user_id: str) -> None:
-    """Copy the starter template into a new user's namespace."""
+    """Copy the starter template into a new user's namespace. Idempotent —
+    silently no-ops if the user already has assets."""
     if await db.assets.count_documents({"user_id": user_id}) > 0:
         return
     await db.assets.insert_many([
@@ -407,6 +408,10 @@ async def root():
 
 @api.get("/dashboard")
 async def dashboard(user: dict = Depends(current_user)):
+    # Guarantee starter data is available for any authenticated user — this covers
+    # accounts that were created before the on-new-user hook existed or were
+    # seeded incompletely.
+    await seed_user_starter(user["user_id"])
     assets = await db.assets.find({"user_id": user["user_id"]}, PROJECTION).to_list(100)
     recs = await db.recommendations.find({"user_id": user["user_id"]}, PROJECTION).to_list(100)
     # Rank recommendations by priority tier then impact descending so newer high-impact
@@ -448,6 +453,7 @@ async def dashboard(user: dict = Depends(current_user)):
 
 @api.get("/portfolio")
 async def get_portfolio(user: dict = Depends(current_user)):
+    await seed_user_starter(user["user_id"])
     assets = await db.assets.find({"user_id": user["user_id"]}, PROJECTION).sort("revenue_mtd", -1).to_list(200)
     total_revenue = sum(a.get("revenue_mtd", 0) for a in assets)
     total_profit = sum(a.get("profit_mtd", 0) for a in assets)
