@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radius, fmtCompact } from '@/src/theme/tokens';
 import { api } from '@/src/services/api';
@@ -40,6 +41,7 @@ function GoalCard({ goal }: { goal: any }) {
 
 export default function Profile() {
   const { user, signOut } = useAuth();
+  const router = useRouter();
   const [goals, setGoals] = useState<any[]>([]);
   const [content, setContent] = useState<any[]>([]);
   const [stripe, setStripe] = useState<any>(null);
@@ -74,10 +76,15 @@ export default function Profile() {
           }
           <Text style={styles.fullName}>{user?.name ?? 'Maya Chen'}</Text>
           <Text style={styles.handle}>{user?.email ?? '@mayabuilds · Creator, founder'}</Text>
-          <View style={styles.proPill}>
+          <Pressable onPress={() => router.push('/pricing')} style={styles.tierPill} testID="tier-badge">
             <Ionicons name="star" size={11} color={colors.brand} />
-            <Text style={styles.proPillText}>CreatorOS Pro</Text>
-          </View>
+            <Text style={styles.tierPillText}>
+              CreatorOS {user?.tier ? user.tier.charAt(0).toUpperCase() + user.tier.slice(1) : 'Free'}
+            </Text>
+            {(!user?.tier || user.tier === 'free') && (
+              <Text style={styles.upgradeHint}> · Upgrade</Text>
+            )}
+          </Pressable>
         </View>
 
         <View style={styles.section}>
@@ -106,10 +113,24 @@ export default function Profile() {
               <Ionicons name="logo-youtube" size={18} color="#FF3D3D" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.intLabel}>YouTube Data API</Text>
-              <Text style={styles.intMeta}>Live channel lookup · add YOUTUBE_API_KEY to enable</Text>
+              <Text style={styles.intLabel}>YouTube</Text>
+              <Text style={styles.intMeta}>
+                {user?.youtube_handle ? `@${user.youtube_handle}` : 'Not connected'}
+              </Text>
             </View>
-            <View style={[styles.statusDot, { backgroundColor: colors.onSurfaceTertiary }]} />
+            <View style={[styles.statusDot, { backgroundColor: user?.youtube_handle ? colors.success : colors.onSurfaceTertiary }]} />
+          </View>
+          <View style={styles.intRow} testID="integration-instagram">
+            <View style={[styles.intIcon, { backgroundColor: 'rgba(225,48,108,0.12)' }]}>
+              <Ionicons name="logo-instagram" size={18} color="#E1306C" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.intLabel}>Instagram</Text>
+              <Text style={styles.intMeta}>
+                {user?.instagram_handle ? `@${user.instagram_handle} · Graph API coming soon` : 'Not connected'}
+              </Text>
+            </View>
+            <View style={[styles.statusDot, { backgroundColor: user?.instagram_handle ? colors.warning : colors.onSurfaceTertiary }]} />
           </View>
         </View>
 
@@ -166,6 +187,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.pill, marginTop: spacing.sm,
   },
   proPillText: { color: colors.brand, fontSize: 11, fontWeight: '700', letterSpacing: 0.4 },
+  tierPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: colors.brandTertiary,
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill, marginTop: spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: colors.brand,
+  },
+  tierPillText: { color: colors.brand, fontSize: 11, fontWeight: '700', letterSpacing: 0.4 },
+  upgradeHint: { color: colors.onSurface, fontSize: 11, fontWeight: '600' },
 
   section: { paddingHorizontal: spacing.lg, marginTop: spacing.xl },
   sectionTitle: { color: colors.onSurface, fontSize: 13, letterSpacing: 1.2, fontWeight: '600', marginBottom: spacing.md },

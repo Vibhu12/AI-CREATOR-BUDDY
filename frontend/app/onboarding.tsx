@@ -17,6 +17,7 @@ export default function Onboarding() {
   const { user, refreshUser } = useAuth();
   const [step, setStep] = useState<Step>('welcome');
   const [handle, setHandle] = useState('');
+  const [igHandle, setIgHandle] = useState('');
   const [preview, setPreview] = useState<any>(null);
   const [lookupErr, setLookupErr] = useState<string | null>(null);
   const [lookingUp, setLookingUp] = useState(false);
@@ -40,9 +41,8 @@ export default function Onboarding() {
   const finish = async () => {
     setBusy(true);
     try {
-      await api.onboardingComplete(handle.trim() || undefined);
+      await api.onboardingComplete(handle.trim() || undefined, igHandle.trim() || undefined);
       await refreshUser();
-      // Gate will auto-redirect to /(tabs) once user.onboarding_complete flips true
     } catch (e) {
       console.warn(e);
     } finally {
@@ -153,6 +153,24 @@ export default function Onboarding() {
                   </View>
                 )}
                 {lookupErr && <Text style={styles.warn}>{lookupErr}</Text>}
+
+                <View style={{ height: spacing.md }} />
+                <View style={styles.inputRow}>
+                  <Text style={styles.inputPrefix}>@</Text>
+                  <TextInput
+                    value={igHandle}
+                    onChangeText={setIgHandle}
+                    placeholder="instagram handle (optional)"
+                    placeholderTextColor={colors.onSurfaceTertiary}
+                    style={styles.input}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    testID="onboarding-ig-input"
+                  />
+                  <View style={styles.igIconBadge}>
+                    <Ionicons name="logo-instagram" size={14} color="#E1306C" />
+                  </View>
+                </View>
                 <Text style={styles.skipHint}>Skip if you don&apos;t have one — you can add later.</Text>
               </View>
             )}
@@ -274,6 +292,11 @@ const styles = StyleSheet.create({
   lookupBtn: {
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: colors.brandTertiary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  igIconBadge: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(225,48,108,0.12)',
     alignItems: 'center', justifyContent: 'center',
   },
 

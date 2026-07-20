@@ -10,14 +10,24 @@ import { api } from '@/src/services/api';
 
 const HORIZONS = [30, 60, 90];
 
-function PlanView({ plan }: { plan: any }) {
+function PlanView({ plan, onToggle }: { plan: any; onToggle: (phase: number, kind: string, task: number, checked: boolean) => void }) {
   if (!plan) return null;
+  const progress = plan.task_progress || {};
+  const isDone = (phase: number, kind: string, task: number) => !!progress[`${phase}.${kind}.${task}`];
   return (
     <View style={{ gap: spacing.lg }}>
       <View style={styles.planHero}>
         <Text style={styles.planKicker}>{plan.horizon_days}-DAY ROADMAP</Text>
         <Text style={styles.planTitle}>{plan.title}</Text>
         <Text style={styles.planSummary}>{plan.summary}</Text>
+        {typeof plan.progress_pct === 'number' && plan.progress_pct > 0 && (
+          <View style={styles.progressWrap}>
+            <View style={styles.progressBg}>
+              <View style={[styles.progressFill, { width: `${plan.progress_pct}%` }]} />
+            </View>
+            <Text style={styles.progressText}>{plan.progress_pct}% complete</Text>
+          </View>
+        )}
         {plan.north_star && (
           <View style={styles.northStar}>
             <Ionicons name="star" size={12} color={colors.brand} />
@@ -53,23 +63,47 @@ function PlanView({ plan }: { plan: any }) {
           {phase.milestones?.length > 0 && (
             <View style={styles.subBlock}>
               <Text style={styles.subTitle}>MILESTONES</Text>
-              {phase.milestones.map((m: string, j: number) => (
-                <View key={j} style={styles.checkRow}>
-                  <Ionicons name="ellipse-outline" size={14} color={colors.brand} />
-                  <Text style={styles.checkText}>{m}</Text>
-                </View>
-              ))}
+              {phase.milestones.map((m: string, j: number) => {
+                const done = isDone(i, 'milestones', j);
+                return (
+                  <Pressable
+                    key={j}
+                    onPress={() => onToggle(i, 'milestones', j, !done)}
+                    style={styles.checkRow}
+                    testID={`task-milestone-${i}-${j}`}
+                  >
+                    <Ionicons
+                      name={done ? 'checkmark-circle' : 'ellipse-outline'}
+                      size={16}
+                      color={done ? colors.success : colors.brand}
+                    />
+                    <Text style={[styles.checkText, done && styles.checkTextDone]}>{m}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
           )}
           {phase.weekly_tasks?.length > 0 && (
             <View style={styles.subBlock}>
               <Text style={styles.subTitle}>WEEKLY TASKS</Text>
-              {phase.weekly_tasks.map((t: string, j: number) => (
-                <View key={j} style={styles.checkRow}>
-                  <Ionicons name="square-outline" size={13} color={colors.onSurfaceSecondary} />
-                  <Text style={styles.checkText}>{t}</Text>
-                </View>
-              ))}
+              {phase.weekly_tasks.map((t: string, j: number) => {
+                const done = isDone(i, 'weekly_tasks', j);
+                return (
+                  <Pressable
+                    key={j}
+                    onPress={() => onToggle(i, 'weekly_tasks', j, !done)}
+                    style={styles.checkRow}
+                    testID={`task-weekly-${i}-${j}`}
+                  >
+                    <Ionicons
+                      name={done ? 'checkbox' : 'square-outline'}
+                      size={15}
+                      color={done ? colors.success : colors.onSurfaceSecondary}
+                    />
+                    <Text style={[styles.checkText, done && styles.checkTextDone]}>{t}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
           )}
           {phase.risk && (
@@ -182,7 +216,26 @@ export default function Strategy() {
             <Text style={styles.emptySub}>Drafting your roadmap with Claude Sonnet 4.5…</Text>
           </View>
         )}
-        {plan && <PlanView plan={plan} />}
+        {plan && (
+          <PlanView
+            plan={plan}
+            onToggle={async (phase, kind, task, checked) => {
+              // optimistic update
+              const key = `${phase}.${kind}.${task}`;
+              const updated = { ...plan, task_progress: { ...(plan.task_progress || {}) } };
+              if (checked) updated.task_progress[key] = true;
+              else delete updated.task_progress[key];
+              setPlan(updated);
+              try {
+                const r = await api.strategyToggleTask(plan.id, phase, kind, task, checked);
+                setPlan({ ...updated, task_progress: r.task_progress, progress_pct: r.progress_pct });
+              } catch {
+                // revert on error
+                setPlan(plan);
+              }
+            }}
+          />
+        )}
         {history.length > 1 && (
           <View style={styles.historySection}>
             <Text style={styles.historyTitle}>Past plans</Text>
@@ -265,8 +318,14 @@ const styles = StyleSheet.create({
 
   subBlock: { marginTop: spacing.md },
   subTitle: { color: colors.onSurfaceTertiary, fontSize: 10, letterSpacing: 1.2, fontWeight: '700', marginBottom: spacing.sm },
-  checkRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start', paddingVertical: 4 },
+  checkRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start', paddingVertical: 6 },
   checkText: { color: colors.onSurface, fontSize: 13, lineHeight: 19, flex: 1 },
+  checkTextDone: { color: colors.onSurfaceTertiary, textDecorationLine: 'line-through' },
+
+  progressWrap: { marginTop: spacing.md, gap: 6 },
+  progressBg: { height: 4, backgroundColor: colors.surfaceTertiary, borderRadius: 2, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: colors.success },
+  progressText: { color: colors.success, fontSize: 11, fontWeight: '600' },
 
   riskRow: {
     flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm,

@@ -87,6 +87,18 @@ def make_integrations_router():
         except Exception as e:
             return {"connected": False, "mode": None, "error": str(e)}
 
+    @router.get("/instagram/profile")
+    async def instagram_profile(handle: str = Query(..., min_length=1)) -> dict[str, Any]:
+        """Instagram Graph API lookup — requires a Facebook app + user OAuth token,
+        which is not configured in this environment. Returns a friendly 503 with
+        instructions so the UI can render a "coming soon" state."""
+        raise HTTPException(
+            503,
+            "Instagram Graph API requires Facebook app credentials and user OAuth "
+            "(FB_APP_ID + FB_APP_SECRET + FB_ACCESS_TOKEN). Not configured in this "
+            "environment — coming soon.",
+        )
+
     return router
 
 

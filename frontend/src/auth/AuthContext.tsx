@@ -13,7 +13,7 @@ import * as SecureStore from 'expo-secure-store';
 const BASE = process.env.EXPO_PUBLIC_BACKEND_URL;
 const TOKEN_KEY = 'creatoros_session_token';
 
-type User = { user_id: string; email: string; name: string; picture?: string; onboarding_complete?: boolean; youtube_handle?: string | null };
+type User = { user_id: string; email: string; name: string; picture?: string; onboarding_complete?: boolean; youtube_handle?: string | null; instagram_handle?: string | null; tier?: string };
 type AuthState = {
   loading: boolean;
   user: User | null;

@@ -30,6 +30,13 @@ class StrategyRequest(BaseModel):
     focus: Optional[str] = None  # optional user-provided goal
 
 
+class TaskToggle(BaseModel):
+    phase_index: int
+    kind: str  # "milestones" | "weekly_tasks" | "leading_indicators"
+    task_index: int
+    checked: bool
+
+
 STRATEGY_SYSTEM = (
     "You are CreatorOS Strategy Engine. You generate operator-grade roadmaps for a creator's business. "
     "Always respond with a single VALID JSON object — no prose, no markdown fences. "
@@ -114,6 +121,7 @@ def make_strategy_router(db, api_key: str, current_user):
             "horizon_days": req.horizon_days,
             "focus": req.focus,
             "created_at": now_utc().isoformat(),
+            "task_progress": {},
             **data,
         }
         await db.strategy_plans.insert_one({**plan})
@@ -121,4 +129,48 @@ def make_strategy_router(db, api_key: str, current_user):
             {"id": plan["id"], "user_id": user["user_id"]}, {"_id": 0}
         )
 
+    @router.patch("/plans/{plan_id}/task")
+    async def toggle_task(plan_id: str, payload: TaskToggle, user: dict = Depends(current_user)):
+        if payload.kind not in ("milestones", "weekly_tasks", "leading_indicators"):
+            raise HTTPException(400, "invalid kind")
+        plan = await db.strategy_plans.find_one(
+            {"id": plan_id, "user_id": user["user_id"]}, {"_id": 0}
+        )
+        if not plan:
+            raise HTTPException(404, "plan not found")
+        key = f"{payload.phase_index}.{payload.kind}.{payload.task_index}"
+        progress = plan.get("task_progress") or {}
+        if payload.checked:
+            progress[key] = True
+        else:
+            progress.pop(key, None)
+        # Compute overall completion pct
+        total, done = _count_tasks(plan, progress)
+        pct = round((done / total) * 100, 1) if total else 0
+        await db.strategy_plans.update_one(
+            {"id": plan_id, "user_id": user["user_id"]},
+            {"$set": {"task_progress": progress, "progress_pct": pct}},
+        )
+        return {"ok": True, "task_progress": progress, "progress_pct": pct}
+
     return router
+
+
+def _count_tasks(plan: dict, progress: dict) -> tuple[int, int]:
+    total = 0
+    done = 0
+    phases = plan.get("phases") or []
+    for pi, ph in enumerate(phases):
+        for kind in ("milestones", "weekly_tasks"):
+            items = ph.get(kind) or []
+            for ti in range(len(items)):
+                total += 1
+                if progress.get(f"{pi}.{kind}.{ti}"):
+                    done += 1
+    # leading indicators live at plan root, use phase_index=-1
+    li = plan.get("leading_indicators") or []
+    for ti in range(len(li)):
+        total += 1
+        if progress.get(f"-1.leading_indicators.{ti}"):
+            done += 1
+    return total, done

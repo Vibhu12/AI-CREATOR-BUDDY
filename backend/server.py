@@ -44,6 +44,7 @@ load_dotenv(ROOT_DIR / ".env")
 from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
 
 from auth import make_auth_router, ensure_indexes
+from billing import make_billing_router
 from competitors import make_competitors_router
 from integrations import make_integrations_router, YOUTUBE_API_KEY
 from strategy import make_strategy_router
@@ -107,6 +108,7 @@ class ChatRequest(BaseModel):
 
 class OnboardingComplete(BaseModel):
     youtube_handle: Optional[str] = None
+    instagram_handle: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -372,8 +374,15 @@ async def onboarding_complete(payload: OnboardingComplete, user: dict = Depends(
     update = {"onboarding_complete": True, "updated_at": now_utc()}
     if payload.youtube_handle:
         update["youtube_handle"] = payload.youtube_handle.lstrip("@")
+    if payload.instagram_handle:
+        update["instagram_handle"] = payload.instagram_handle.lstrip("@")
     await db.users.update_one({"user_id": user["user_id"]}, {"$set": update})
-    return {"ok": True, "onboarding_complete": True, "youtube_handle": update.get("youtube_handle")}
+    return {
+        "ok": True,
+        "onboarding_complete": True,
+        "youtube_handle": update.get("youtube_handle"),
+        "instagram_handle": update.get("instagram_handle"),
+    }
 
 
 # --- AI Coach (streaming) --------------------------------------------------
@@ -488,6 +497,7 @@ api.include_router(auth_router)
 api.include_router(make_integrations_router())
 api.include_router(make_competitors_router())
 api.include_router(make_strategy_router(db, EMERGENT_LLM_KEY, current_user))
+api.include_router(make_billing_router(db, current_user))
 app.include_router(api)
 
 app.add_middleware(

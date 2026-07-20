@@ -45,20 +45,36 @@ export const api = {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ horizon_days, focus }),
   }).then(json),
+  strategyToggleTask: (plan_id: string, phase_index: number, kind: string, task_index: number, checked: boolean) =>
+    authFetch(`/api/strategy/plans/${plan_id}/task`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phase_index, kind, task_index, checked }),
+    }).then(json),
+
+  // Billing
+  billingPlans:   () => authFetch(`/api/billing/plans`).then(json),
+  billingPlan:    () => authFetch(`/api/billing/plan`).then(json),
+  billingUpgrade: (tier: string) => authFetch(`/api/billing/upgrade`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tier }),
+  }).then(json),
 
   // Integrations
   stripeStatus:    () => authFetch(`/api/integrations/stripe/status`).then(json),
   youtubeChannel:  (handle: string) => authFetch(`/api/integrations/youtube/channel?handle=${encodeURIComponent(handle)}`).then(json),
+  instagramProfile: (handle: string) => authFetch(`/api/integrations/instagram/profile?handle=${encodeURIComponent(handle)}`).then(json),
 
   // Auth
   me: () => authFetch(`/api/auth/me`).then(json),
 
   // Onboarding
   onboardingStatus:   () => authFetch(`/api/onboarding/status`).then(json),
-  onboardingComplete: (youtube_handle?: string) => authFetch(`/api/onboarding/complete`, {
+  onboardingComplete: (youtube_handle?: string, instagram_handle?: string) => authFetch(`/api/onboarding/complete`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ youtube_handle }),
+    body: JSON.stringify({ youtube_handle, instagram_handle }),
   }).then(json),
 };
 
