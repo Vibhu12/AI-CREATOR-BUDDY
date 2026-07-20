@@ -1,0 +1,54 @@
+{
+  "summary": "v6 reseed + expanded starter — Backend 9/9 GREEN. Frontend PARTIAL: Portfolio ✅ (8 assets w/ Amazon+ConvertKit Affiliate + Notion Templates — Gumroad, total $66.5k), Profile reseed-btn ✅ (labelled 'Reload Maya demo data', tappable, returns to normal after ~1s, refreshes profile data). TWO REAL BUGS FOUND: (1) AddAssetModal's PLATFORMS array is hardcoded to only 7 chips — 'affiliate' and 'digital' are missing (platformMeta has them but the modal doesn't render them). Only 7 chips render in the horizontal scroll row on /portfolio → +. (2) Dashboard recommendations carousel shows only the ORIGINAL 4 titles ('Double down on YouTube long-form', 'Raise Ship It cohort price by 18%', 'Cut Instagram Reels production by 40%', 'Launch newsletter sponsor tier') — none of the 3 new titles ('Bundle Notion templates into a $99 pack', 'Diversify affiliate portfolio', 'Repurpose podcast into YouTube shorts') appear. Root cause: /api/dashboard returns `recs[:4]` without ordering by priority/impact — Mongo returns in insertion order so the first 4 inserted always win, and the 3 new recs are appended in STARTER_RECS 5-7. Backend: POST /api/dev/reseed requires auth (401 without Bearer), returns {ok:true,user_id}; wipes+reseeds atomically; is fully user-scoped (user A reseed does NOT touch user B's 3 custom + 8 seeded assets); reseed for self correctly wipes custom data. Post-reseed Mongo counts: assets=8, goals=4, content=4, recommendations=7 (with all 3 new titles), notifications=6, chat_messages=4, strategy_plans=1. GET /api/portfolio.asset_count=8, total_revenue_mtd=$66,460.50. GET /api/recommendations.items.length=7 (all new titles present). GET /api/dashboard.metrics.revenue.value=$66,460.50, label='Revenue MTD', recommendations.length=4. React Native issues: pre-existing 'props.pointerEvents deprecated' warning (carryover).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/dashboard", "issue": "Returns recs[:4] without sorting by priority/impact/confidence. Because Mongo returns in insertion order, the 3 NEW recommendations (indices 4,5,6 in STARTER_RECS) never appear on Dashboard even though they are valid — one has priority='high'. Sort by (priority desc, impact desc) before slicing. Reference: server.py:437."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AddAssetModal", "issue": "Hardcoded PLATFORMS array only lists 7 platforms — missing 'affiliate' and 'digital'. platformMeta in tokens.ts already has both entries (orange F97316 + cyan 22D3EE). The horizontal chip row on /portfolio → + only shows 7 chips instead of the expected 9. Reference: /app/frontend/src/components/AddAssetModal.tsx:11. Fix: PLATFORMS = ['youtube','instagram','tiktok','course','newsletter','podcast','saas','affiliate','digital']", "testID": "platform-chip-affiliate, platform-chip-digital", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Dashboard AI recommendations carousel", "issue": "Only shows original 4 recs — the 3 new titles (Bundle Notion templates, Diversify affiliate portfolio, Repurpose podcast into YouTube shorts) never render because /api/dashboard slices recs[:4] in insertion order without prioritization. Fix in backend (sort by priority/impact desc before slicing).", "affected_testIDs": ["rec-*"]}
+    ],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "Pressable (rn-web, carryover)", "issue": "Pre-existing 'props.pointerEvents is deprecated. Use style.pointerEvents' console warning — non-blocking, not v6-introduced."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v6_reseed.py",
+    "/app/test_reports/pytest/pytest_v6.xml"
+  ],
+  "action_items": [
+    "HIGH — Add 'affiliate' and 'digital' to PLATFORMS array in /app/frontend/src/components/AddAssetModal.tsx:11 so the new platform chips render. platformMeta already has them.",
+    "HIGH — /api/dashboard should sort recommendations by priority/impact before slicing to top-4 so the newly-added recs surface. In server.py:437 change `recs[:4]` to something like `sorted(recs, key=lambda r: ({'high':3,'medium':2,'low':1}.get(r.get('priority','low'),1), r.get('impact',0)), reverse=True)[:4]`.",
+    "OPTIONAL cleanup: db.user_sessions.delete_one({session_token:'ui-v6-token'}); db.users.delete_one({user_id:'user_ui_v6'}); + cascade delete on all user-scoped collections by user_id='user_ui_v6'.",
+    "OPTIONAL (carryover): migrate remaining Pressable/View usages of the deprecated pointerEvents prop to style.pointerEvents."
+  ],
+  "critical_code_review_comments": [
+    "server.py:562-571 — /api/dev/reseed correctly wipes 7 user-scoped collections then re-invokes seed_user_starter. Guarded by current_user dependency so 401 without Bearer. Correct.",
+    "server.py:310-365 — seed_user_starter has a short-circuit at line 312 (`if count > 0: return`). This is fine because /dev/reseed pre-wipes; but any other caller (e.g. re-invoking directly) would silently no-op. Not a bug for the reseed flow.",
+    "server.py:117-142 — STARTER_ASSETS now has 8 entries; new affiliate row has revenue=$4,180 and profit=$4,180 (100% margin, plausible for affiliate), digital row has $5,620/$5,340. Sum matches EXPECTED_TOTAL_REV=$66,460.50 exactly.",
+    "server.py:166-195 — STARTER_RECS now has 7 entries with the 3 new titles at indices 4-6. However /api/dashboard uses `recs[:4]` (line 437) which slices in Mongo insertion order → the 3 new recs NEVER appear on Dashboard. This is the bug. Consider adding a `priority_rank` sort before slicing.",
+    "profile.tsx:155-168 — reseed-btn correctly toggles reseeding state, awaits api.reseedStarter() and load(); the button disables and shows 'Reloading…' while busy. Verified in UI.",
+    "AddAssetModal.tsx:11 — PLATFORMS list is out of sync with platformMeta in tokens.ts (which has affiliate + digital). Either derive PLATFORMS from Object.keys(platformMeta) or manually add the two new entries. Currently only 7 chips render.",
+    "test_v6_reseed.py — 9 tests covering auth gate, response shape, count regression, user-scoping, self-wipe. All passing.",
+    "No hardcoded URLs — all backend tests use EXPO_PUBLIC_BACKEND_URL from env; frontend api service uses process.env.EXPO_PUBLIC_BACKEND_URL. Correct."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v6_reseed.py (new — 9 tests, reseed auth + scoping + count regression + portfolio total + dashboard metric)",
+    "/app/test_reports/pytest/pytest_v6.xml (junit output)"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 v6 tests + prior 13 v5 remain valid)",
+    "frontend": "60% — Portfolio + Profile reseed-btn verified end-to-end; Add Asset modal missing 2 chips; Dashboard shows wrong 4 recs"
+  },
+  "seed_data_creation": "Backend test fixture creates ephemeral users user_v6_a_* and user_v6_b_* and cleans them up on teardown. For UI testing, one persistent synthetic user: user_id='user_ui_v6', session_token='ui-v6-token', name='UI V6', onboarding_complete=true, tier='free' — full 8-asset starter seed. Cleanup command in action_items.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "v6 reseed backend is fully verified (9/9). Two real bugs remain: (1) AddAssetModal.tsx line 11 PLATFORMS array is missing 'affiliate' and 'digital' — trivial one-line fix; (2) server.py:437 /api/dashboard uses recs[:4] without sorting so the 3 new recommendations never surface. UI test session: token='ui-v6-token' bound to user_ui_v6. Playwright pattern: goto /login → localStorage.setItem('creatoros_session_token','ui-v6-token') → goto target route. All prior regression tests remain valid.",
+  "rca_of_issue": "BUG #1 (Add Asset chips): AddAssetModal.tsx hardcodes PLATFORMS = ['youtube','instagram','tiktok','course','newsletter','podcast','saas'] at line 11. When the expanded starter added platformMeta entries for 'affiliate' + 'digital' in tokens.ts, this array was NOT updated to match. Result: portfolio rows for the two new assets still render with correct sparkline colors (because Portfolio uses platformMeta directly), but the Add Asset modal's chip row only shows 7 chips. FIX: append 'affiliate' + 'digital' to PLATFORMS (or derive PLATFORMS from Object.keys(platformMeta) to prevent future drift). BUG #2 (Dashboard recs): server.py line 437 does `recs[:4]` where recs = await db.recommendations.find(...).to_list(100). Motor returns docs in natural insertion order — the original 4 recs were inserted first, so the 3 new ones are always at indices 4-6 and never included in the top-4 slice. FIX: sort by priority tier + impact desc before slicing. Example: `PRIO={'high':3,'medium':2,'low':1}; ranked = sorted(recs, key=lambda r: (PRIO.get(r.get('priority'),1), r.get('impact',0)), reverse=True); return {'recommendations': ranked[:4]}`. Reproduction: seed a user via seed_user_starter, GET /api/dashboard, inspect body.recommendations — you'll see only the first 4 STARTER_RECS entries; the new 'Bundle Notion templates' (priority=high, impact=7) never appears."
+}

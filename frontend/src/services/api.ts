@@ -86,6 +86,9 @@ export const api = {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ youtube_handle, instagram_handle }),
   }).then(json),
+
+  // Dev / reset
+  reseedStarter: () => authFetch(`/api/dev/reseed`, { method: 'POST' }).then(json),
 };
 
 export { getToken };

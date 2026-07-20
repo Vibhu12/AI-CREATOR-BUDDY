@@ -45,6 +45,7 @@ export default function Profile() {
   const [goals, setGoals] = useState<any[]>([]);
   const [content, setContent] = useState<any[]>([]);
   const [stripe, setStripe] = useState<any>(null);
+  const [reseeding, setReseeding] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -151,7 +152,22 @@ export default function Profile() {
         </View>
 
         <View style={styles.section}>
-          <Pressable onPress={signOut} style={styles.signOutBtn} testID="sign-out-btn">
+          <Pressable
+            onPress={async () => {
+              setReseeding(true);
+              try { await api.reseedStarter(); await load(); } finally { setReseeding(false); }
+            }}
+            disabled={reseeding}
+            style={[styles.reseedBtn, reseeding && { opacity: 0.6 }]}
+            testID="reseed-btn"
+          >
+            <Ionicons name="refresh-circle-outline" size={18} color={colors.brand} />
+            <Text style={styles.reseedText}>
+              {reseeding ? 'Reloading…' : 'Reload Maya demo data'}
+            </Text>
+          </Pressable>
+
+          <Pressable onPress={signOut} style={[styles.signOutBtn, { marginTop: spacing.sm }]} testID="sign-out-btn">
             <Ionicons name="log-out-outline" size={18} color={colors.error} />
             <Text style={styles.signOutText}>Sign out</Text>
           </Pressable>
@@ -245,4 +261,12 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(229,72,77,0.3)',
   },
   signOutText: { color: colors.error, fontSize: 14, fontWeight: '600' },
+
+  reseedBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
+    backgroundColor: colors.brandTertiary,
+    borderRadius: radius.md, paddingVertical: 14,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: colors.brand,
+  },
+  reseedText: { color: colors.brand, fontSize: 14, fontWeight: '600' },
 });

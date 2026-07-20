@@ -39,6 +39,8 @@ export const platformMeta: Record<string, { label: string; color: string; emoji:
   newsletter:{ label: 'Newsletter', color: '#7FB3FF', emoji: '✉' },
   podcast:   { label: 'Podcast',    color: '#B68FFF', emoji: '◐' },
   saas:      { label: 'SaaS',       color: '#45C97A', emoji: '▣' },
+  affiliate: { label: 'Affiliate',  color: '#F97316', emoji: '↗' },
+  digital:   { label: 'Digital',    color: '#22D3EE', emoji: '⬢' },
 };
 
 export const fmtCurrency = (n: number) => {

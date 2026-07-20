@@ -133,6 +133,12 @@ STARTER_ASSETS: List[dict] = [
     {"name": "Founder Mode — Podcast", "platform": "podcast", "category": "Interview show",
      "revenue_mtd": 2840.00, "profit_mtd": 2110.00, "followers": 11200, "ai_score": 72,
      "trend": [62, 64, 66, 68, 70, 71, 72]},
+    {"name": "Amazon + ConvertKit Affiliate", "platform": "affiliate", "category": "Tool recommendations",
+     "revenue_mtd": 4180.00, "profit_mtd": 4180.00, "followers": 0, "ai_score": 79,
+     "trend": [58, 62, 66, 70, 74, 76, 79]},
+    {"name": "Notion Templates — Gumroad", "platform": "digital", "category": "Digital downloads",
+     "revenue_mtd": 5620.00, "profit_mtd": 5340.00, "followers": 3840, "ai_score": 82,
+     "trend": [64, 68, 72, 75, 78, 80, 82]},
 ]
 
 STARTER_GOALS: List[dict] = [
@@ -174,6 +180,18 @@ STARTER_RECS: List[dict] = [
      "summary": "22.8k engaged readers, 48% open rate. Conservative CPM benchmarks suggest $1.8k/issue floor.",
      "priority": "medium", "impact": 7, "effort": 4, "confidence": 81,
      "category": "Monetization", "expected_roi": "+$7.2k MTD"},
+    {"title": "Bundle Notion templates into a $99 pack",
+     "summary": "Your 4 top-selling templates convert individually. A bundled pack at $99 would lift AOV 3.2× with the same traffic.",
+     "priority": "high", "impact": 7, "effort": 2, "confidence": 86,
+     "category": "Monetization", "expected_roi": "+$4.8k MTD"},
+    {"title": "Diversify affiliate portfolio",
+     "summary": "82% of affiliate revenue comes from Amazon. One policy change kills the channel — add 3 SaaS affiliates with 30% recurring.",
+     "priority": "medium", "impact": 8, "effort": 4, "confidence": 74,
+     "category": "Risk", "expected_roi": "De-risks $4.2k/mo"},
+    {"title": "Repurpose podcast into YouTube shorts",
+     "summary": "Founder Mode has 11.2k engaged listeners but only 8% of episodes get clipped for social. Automate this loop.",
+     "priority": "low", "impact": 5, "effort": 6, "confidence": 71,
+     "category": "Content", "expected_roi": "+$1.9k MTD"},
 ]
 
 
@@ -539,6 +557,18 @@ async def onboarding_status(user: dict = Depends(current_user)):
         "youtube_handle": user.get("youtube_handle"),
         "youtube_api_configured": bool(YOUTUBE_API_KEY),
     }
+
+
+@api.post("/dev/reseed")
+async def reseed_starter(user: dict = Depends(current_user)):
+    """Reload the Maya starter dataset for the current user. Wipes any existing
+    user-scoped data and reseeds from the template."""
+    uid = user["user_id"]
+    for coll in ("assets", "goals", "content", "recommendations",
+                 "strategy_plans", "chat_messages", "notifications"):
+        await db[coll].delete_many({"user_id": uid})
+    await seed_user_starter(uid)
+    return {"ok": True, "user_id": uid}
 
 
 @api.post("/onboarding/complete")
