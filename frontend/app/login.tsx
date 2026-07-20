@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radius } from '@/src/theme/tokens';
 import { useAuth } from '@/src/auth/AuthContext';
@@ -20,40 +19,26 @@ export default function Login() {
 
   return (
     <View style={styles.root}>
-      <LinearGradient
-        colors={['#1C1408', '#0A0805', colors.surface]}
-        style={StyleSheet.absoluteFill}
-      />
       <SafeAreaView edges={['top', 'bottom']} style={styles.safe}>
-        <View style={styles.brandRow}>
-          <View style={styles.logoMark}>
-            <Ionicons name="sparkles" size={20} color={colors.brand} />
+        {/* TOP — objective front and center */}
+        <View style={styles.top}>
+          <View style={styles.brandRow}>
+            <View style={styles.logoMark}>
+              <Ionicons name="sparkles" size={16} color={colors.brand} />
+            </View>
+            <Text style={styles.brand}>CreatorOS</Text>
           </View>
-          <Text style={styles.brand}>CreatorOS</Text>
-        </View>
 
-        <View style={styles.center}>
-          <Text style={styles.kicker}>YOUR AI BUSINESS OS</Text>
-          <Text style={styles.headline}>The CEO in your pocket.</Text>
-          <Text style={styles.sub}>
-            Track revenue, predict growth, and run your creator business with a quantified AI co-founder.
+          <Text style={styles.objective} testID="login-objective">
+            The AI business OS for creators.
           </Text>
 
-          <View style={styles.bullets}>
-            {[
-              { icon: 'flash', text: 'AI Coach trained on your business' },
-              { icon: 'analytics', text: 'Hero score across 6 dimensions' },
-              { icon: 'trophy', text: 'Benchmark vs the top 1%' },
-              { icon: 'rocket', text: 'AI-generated 30/60/90 day plans' },
-            ].map(b => (
-              <View key={b.text} style={styles.bulletRow}>
-                <Ionicons name={b.icon as any} size={14} color={colors.brand} />
-                <Text style={styles.bulletText}>{b.text}</Text>
-              </View>
-            ))}
-          </View>
+          <Text style={styles.purpose}>
+            Track your revenue, benchmark against the top 1%, and generate growth plans — all from one place.
+          </Text>
         </View>
 
+        {/* BOTTOM — sign in */}
         <View style={styles.bottom}>
           {err && <Text style={styles.err}>{err}</Text>}
           <Pressable
@@ -83,24 +68,32 @@ export default function Login() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.surface },
-  safe: { flex: 1, paddingHorizontal: spacing.xl },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md },
+  safe: { flex: 1, paddingHorizontal: spacing.xl, justifyContent: 'space-between' },
+
+  top: { paddingTop: spacing.xl },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xxxl },
   logoMark: {
-    width: 32, height: 32, borderRadius: 8,
+    width: 28, height: 28, borderRadius: 8,
     backgroundColor: colors.brandTertiary,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth, borderColor: colors.brand,
   },
-  brand: { color: colors.onSurface, fontSize: 16, fontWeight: '600', letterSpacing: -0.3 },
+  brand: { color: colors.onSurface, fontSize: 15, fontWeight: '600', letterSpacing: -0.2 },
 
-  center: { flex: 1, justifyContent: 'center' },
-  kicker: { color: colors.brand, fontSize: 11, letterSpacing: 1.4, fontWeight: '700' },
-  headline: { color: colors.onSurface, fontSize: 36, fontWeight: '700', letterSpacing: -1.2, marginTop: spacing.sm, lineHeight: 42 },
-  sub: { color: colors.onSurfaceSecondary, fontSize: 14, lineHeight: 20, marginTop: spacing.md, maxWidth: 320 },
-
-  bullets: { marginTop: spacing.xl, gap: spacing.md },
-  bulletRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  bulletText: { color: colors.onSurface, fontSize: 13 },
+  objective: {
+    color: colors.onSurface,
+    fontSize: 34,
+    fontWeight: '700',
+    letterSpacing: -1.2,
+    lineHeight: 40,
+  },
+  purpose: {
+    color: colors.onSurfaceSecondary,
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: spacing.md,
+    maxWidth: 340,
+  },
 
   bottom: { paddingBottom: spacing.md, gap: spacing.sm },
   err: { color: colors.error, fontSize: 12, textAlign: 'center' },
