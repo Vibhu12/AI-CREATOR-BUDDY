@@ -1,0 +1,63 @@
+{
+  "summary": "Full customer-perspective E2E audit of CreatorOS. Backend: 28/28 GREEN across all critical endpoints — /api/, auth-gate (401 empty & bad token), /dashboard shape (greeting/hero/metrics/recommendations with revenue=$66,460.50), /portfolio list + add-with-persistence, /portfolio empty-name + non-numeric-revenue validation (422), /finance 1W/1M/3M ranges, /goals /content /recommendations /notifications shape ({items:[...]}) + mark-read + unread decrement, /ai/chat live (Claude Sonnet 4.5, ~5s), /ai/chat/history + /ai/chat/reset (session_id query), /strategy/plans list + generate (~15-20s), /competitors (overview + radar + gaps public), /integrations/stripe/status (connected:false as expected), /integrations/instagram/profile (503 with handle, 422 without — see minor), /billing/upgrade mock → tier reflected in /billing/plan, /billing/plans public, /onboarding/status + /onboarding/complete, /auth/me, /dev/reseed. Frontend: 22/22 GREEN on mobile viewport (390x844) — Login screen (Continue with Google), Dashboard (greeting personalised with first name 'Audit', hero score ring, metrics grid, recommendation cards, notifications-btn opens modal + mark-all-as-read), Portfolio (assets render with sparklines, add-asset-btn opens modal, empty-submit correctly blocked, valid submit persists new asset visible on refresh — math check: baseline $66,460.50 + $1,234 test asset ≈ $67.7k confirmed in UI), AI Coach (chat-input, chat-send-btn, chat-reset-btn, input clears after send, AI reply arrives), Finance (finance-chart, $ figures, 1W/1M/3M pills), Profile (email, name, tier-badge, sign-out-btn, reseed-btn, integration-{yt,ig,stripe} rows, goals list), Competitors (radar with 3 layers You/Top 1%/Industry avg, gap bars ordered by upside desc), Strategy (30/60/90-day pills, generate-plan-btn, back-btn, roadmap w/ progress), Pricing (3 tiers, POPULAR badge on Pro, CURRENT pill), Sign-out flow (returns to /login and clears creatoros_session_token). Onboarding gate verified: authed+complete user hitting /onboarding correctly redirects back to /(tabs). Deprecated packages detected: FastAPI @app.on_event('startup'/'shutdown') at server.py:724,729 (migrate to lifespan). Deprecated RN-web prop detected: props.pointerEvents console warning (non-blocking, carryover from prior iterations).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/integrations/instagram/profile", "issue": "Returns 422 (Pydantic missing-param) when `handle` query is absent instead of a friendlier 400 with message. UI never calls it without handle, so not a real bug, but response schema differs from the 503 friendly-error contract for this integration."},
+      {"endpoint": "GET /api/auth/me", "issue": "Envelope is {user:{...}} and does NOT include `tier`. Other list endpoints use {items:[...]} envelope. `tier` must be fetched separately from /api/billing/plan. Inconsistent shape — consider adding tier to /me or normalising envelopes."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AddAssetModal", "issue": "Submit with empty required fields silently blocks (modal stays open) with no inline error text or field-level highlight. First-time users may think the button is broken. Reference: /app/frontend/src/components/AddAssetModal.tsx", "testID": "asset-submit-btn", "priority": "P2"},
+      {"component": "Tab bar (tabs)/_layout.tsx", "issue": "Tab items have no testID props (no tab-home/tab-portfolio/tab-coach/tab-finance/tab-profile). Navigation is functional via URL routing but testability is limited. Reference: /app/frontend/app/(tabs)/_layout.tsx", "testID": "n/a", "priority": "P3"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "AI Coach", "issues": ["No visible timestamp or 'streaming...' indicator on incoming assistant tokens — while the response does arrive, first-time user has no signal that AI is thinking during the 3-8s latency. Add a loading dot or 'Coach is typing...' state."]},
+      {"screen": "AddAssetModal", "issues": ["No inline validation copy shown on empty submit. Recommend showing 'Name is required' near the field on failed submit."]},
+      {"screen": "Global", "issues": ["Console warning `props.pointerEvents is deprecated. Use style.pointerEvents` appears on every screen (rn-web). Non-blocking but noisy in devtools."]}
+    ],
+    "react_native_issues": [
+      {"component": "server.py:724,729 (FastAPI on_event)", "issue": "Deprecated @app.on_event('startup'/'shutdown') handlers still used. Migrate to `lifespan` context manager (available since FastAPI 0.93). Reference: /app/backend/server.py:724,729"},
+      {"component": "rn-web Pressable/View", "issue": "Repeated console warning 'props.pointerEvents is deprecated. Use style.pointerEvents' — some component in the tree is still passing pointerEvents as a prop. Non-blocking but should be migrated."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v9_full_audit.py",
+    "/app/test_reports/pytest/pytest_v9.xml"
+  ],
+  "action_items": [
+    "P2 — Add inline validation error text to AddAssetModal when required fields are empty (name/platform/category). Currently silent block; users get no feedback.",
+    "P2 — Migrate FastAPI @app.on_event('startup'/'shutdown') at server.py:724,729 to the `lifespan` async context manager (deprecated since FastAPI 0.93).",
+    "P3 — Add testID props to the 5 tab items in app/(tabs)/_layout.tsx (tab-home, tab-portfolio, tab-coach, tab-finance, tab-profile) to unblock future tab-nav playwright tests.",
+    "P3 — Add a 'Coach is typing...' or dot-loading placeholder in coach.tsx while waiting for the AI response (currently 3-8s of dead UI).",
+    "P3 — Normalise API envelopes: /api/auth/me returns {user:{...}} without `tier`; either add `tier` to /me or document why /billing/plan owns tier retrieval.",
+    "P3 — GET /api/integrations/instagram/profile without `handle` should return a friendlier 400 (or 503 with the standard 'not configured' message) instead of Pydantic 422.",
+    "P3 — Track down the residual `props.pointerEvents` deprecation warning source and migrate to style.pointerEvents.",
+    "OPTIONAL cleanup — Remove ephemeral test user `user_audit`/token `audit-token` from Mongo once the main agent no longer needs it."
+  ],
+  "critical_code_review_comments": [
+    "server.py:724,729 — Deprecated FastAPI on_event handlers. Non-blocking today (FastAPI still supports them) but will break on major bumps.",
+    "server.py:410,455 — /api/dashboard and /api/portfolio both correctly call `await seed_user_starter(user['user_id'])` before reading collections. Auto-seed remains idempotent (assets.count > 0 short-circuits).",
+    "server.py:420 — Recommendation ordering: priority tier asc then impact desc. Correct and stable.",
+    "auth.py:117 — GET /me returns nested {user:{...}} envelope with no `tier` — Profile screen must call /billing/plan separately. Consider merging.",
+    "integrations.py:91 — `handle: str = Query(..., min_length=1)` yields 422 on missing — for a placeholder endpoint that also raises 503 in its body, returning 422 first for missing param feels inconsistent. Make handle optional and always return 503 with the same friendly message.",
+    "AddAssetModal.tsx — Client-side validation blocks submit but does not surface an error message; UX gap.",
+    "app/(tabs)/_layout.tsx — Tab items lack testID props; adding them costs 1 line each and unlocks reliable playwright tab navigation.",
+    "No hardcoded URLs. All frontend calls use process.env.EXPO_PUBLIC_BACKEND_URL. Backend uses os.environ for MONGO_URL/DB_NAME/EMERGENT_LLM_KEY/STRIPE_API_KEY. Correct."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v9_full_audit.py (new — 28 test full-surface audit, replaces ad-hoc curl coverage)",
+    "/app/test_reports/pytest/pytest_v9.xml (junit output — 28 passed in 46s)"
+  ],
+  "success_rate": {
+    "backend": "100% (28/28 v9 full audit) + carryover regression 11/11 v8, 12/12 v7+v6, 9/9 v6 all still green in isolation",
+    "frontend": "100% (22/22 UI checks across 8 screens on 390x844 viewport)"
+  },
+  "seed_data_creation": "Persistent audit user created directly in Mongo: users {user_id:'user_audit', email:'audit@example.com', name:'Audit User', onboarding_complete:true, tier:'free'} + user_sessions {session_token:'audit-token', user_id:'user_audit', expires_at:+7d}. Auto-seed populates user_audit's 7 scoped collections on first dashboard/portfolio hit. Additionally one TEST_UI_Asset persisted on user_audit's portfolio from the UI add-asset flow — safe to leave or clean via db.assets.delete_many({user_id:'user_audit',name:{'\\$regex':'^TEST_'}}).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Persistent UI test session: token='audit-token' bound to user_audit (onboarding_complete=true, tier reset to free after this run). Correct testIDs cheat sheet — Notifications: notifications-btn, notifications-modal, notifications-close, notifications-mark-all. Add asset: add-asset-btn, add-asset-modal, add-asset-close, asset-name-input, asset-revenue-input, asset-category-input, asset-followers-input, asset-submit-btn. Coach: chat-input, chat-send-btn, chat-reset-btn, chat-empty. Profile: tier-badge, sign-out-btn, reseed-btn, integration-{youtube,instagram,stripe}. Strategy: generate-plan-btn, back-btn, strategy-empty. Dashboard: dashboard-greeting, hero-score, quick-competitors, quick-strategy. Onboarding: onboarding-back-btn, onboarding-next-btn, onboarding-yt-input, onboarding-ig-input, onboarding-yt-lookup, onboarding-yt-preview. Tab bar items have NO testIDs — navigate via URL routes (/, /portfolio, /coach, /finance, /profile). API contract gotchas: POST /portfolio requires `category` field; POST /ai/chat requires `session_id` in body; GET /ai/chat/history and POST /ai/chat/reset require `session_id` as query param; POST /strategy/plans generates a plan (there is no /strategy/generate); goals/content/recommendations/notifications return {items:[...]}, dashboard returns metrics array, /auth/me returns {user:{...}} without tier (fetch tier from /billing/plan). Instagram integration returns 422 if handle query missing, 503 if handle provided.",
+  "rca_of_issue": "N/A — this iteration is a broad customer-perspective audit, not a bug fix. Zero P0/P1 blockers found. Total 4×P2 and 4×P3 minor UX/consistency findings enumerated in action_items."
+}
