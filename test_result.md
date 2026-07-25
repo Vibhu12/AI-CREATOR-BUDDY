@@ -101,3 +101,130 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: |
+  Session focus: Add "Connections Hub" — integrations for YouTube, Instagram,
+  Stripe, PayPal with dummy/mock data (user chose "take dummy"). Also refresh
+  the Pricing checkout with a realistic Stripe/PayPal checkout modal.
+
+backend:
+  - task: "Integrations Hub — per-user connections (YouTube/Instagram/Stripe/PayPal)"
+    implemented: true
+    working: "NA"
+    file: "backend/integrations.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: |
+            New endpoints:
+              GET  /api/integrations/connections            (list of 4 providers + status)
+              POST /api/integrations/{provider}/connect     (body: {account})
+              POST /api/integrations/{provider}/disconnect
+              GET  /api/integrations/youtube/channel        (returns real or deterministic mock)
+              GET  /api/integrations/instagram/profile      (deterministic mock)
+              GET  /api/integrations/stripe/status          (real via key, else mock)
+              GET  /api/integrations/paypal/status          (mock)
+            Connection state stored in db.connections (upsert on connect).
+            All endpoints require auth via current_user dependency.
+
+  - task: "Billing checkout session flow (Stripe + PayPal)"
+    implemented: true
+    working: "NA"
+    file: "backend/billing.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: |
+            Added POST /api/billing/checkout (creates cs_ session id, stores in
+            db.checkout_sessions) and POST /api/billing/checkout/confirm
+            (flips tier + marks session complete). Legacy /billing/upgrade
+            still works. Free tier rejected at checkout.
+
+frontend:
+  - task: "Connections Hub screen (/integrations)"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/integrations.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: |
+            New screen with 4 provider cards. Connect flow shows OAuth-style
+            modal: input handle/email → 'Redirecting' → 'Authorizing' →
+            'Connected' success state → auto-close. Connected providers show
+            summary metrics + 'View data' button which opens a detail sheet
+            showing stats + recent items (videos/reels/charges/transactions).
+            Disconnect uses Alert confirmation.
+
+  - task: "Pricing checkout modal (Stripe/PayPal selection)"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/pricing.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: |
+            Rewrote pricing to open a checkout modal on Upgrade tap. Modal
+            shows payment method radio (Stripe/PayPal), 'Pay securely' CTA,
+            then processing state with session id, then success confetti.
+            Free tier cannot be checked out. Current tier button disabled.
+
+  - task: "Profile 'Connected integrations' summary + link to hub"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/(tabs)/profile.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: |
+            Replaced the per-integration rows with a compact 'X of 4
+            connected' summary card that pushes to /integrations. Uses
+            api.connections() instead of separate stripeStatus call.
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 11
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Integrations Hub — per-user connections (YouTube/Instagram/Stripe/PayPal)"
+    - "Billing checkout session flow (Stripe + PayPal)"
+    - "Connections Hub screen (/integrations)"
+    - "Pricing checkout modal (Stripe/PayPal selection)"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: |
+        Implemented Option C (dummy data integrations). Please test:
+        1. Backend: /api/integrations/connections returns 4 providers; connect
+           with a handle stores + returns summary; disconnect clears.
+        2. Backend: /api/billing/checkout creates a session; /confirm switches
+           tier. Free tier rejected. Legacy /billing/upgrade still functions.
+        3. Frontend: /integrations screen — connect YouTube with e.g. '@maya'
+           should show OAuth-simulation modal, complete, then show metrics.
+           'View data' opens detail sheet with subs/RPM/recent videos.
+        4. Frontend: Pricing → Upgrade to Pro opens checkout modal with
+           Stripe/PayPal radios. Pay proceeds through processing → success →
+           closes. Profile shows updated tier.
+        5. Regression: existing dashboard, portfolio, ai coach, strategy,
+           competitors, notifications still functional.

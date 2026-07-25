@@ -15,6 +15,13 @@ const KIND_ICON: Record<string, any> = {
   content: 'film-outline',
 };
 
+const INTEGRATION_ICON: Record<string, any> = {
+  youtube: 'logo-youtube',
+  instagram: 'logo-instagram',
+  stripe: 'card',
+  paypal: 'wallet',
+};
+
 function GoalCard({ goal }: { goal: any }) {
   const pct = Math.min(100, Math.round((goal.current / goal.target) * 100));
   const display = goal.kind === 'revenue' ? `$${fmtCompact(goal.current)} / $${fmtCompact(goal.target)}`
@@ -44,15 +51,15 @@ export default function Profile() {
   const router = useRouter();
   const [goals, setGoals] = useState<any[]>([]);
   const [content, setContent] = useState<any[]>([]);
-  const [stripe, setStripe] = useState<any>(null);
+  const [connections, setConnections] = useState<any[]>([]);
   const [reseeding, setReseeding] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [g, c, s] = await Promise.all([api.goals(), api.content(), api.stripeStatus()]);
+      const [g, c, conn] = await Promise.all([api.goals(), api.content(), api.connections()]);
       setGoals(g.items);
       setContent(c.items);
-      setStripe(s);
+      setConnections(conn.connections);
     } catch (e) { console.warn(e); }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -94,45 +101,52 @@ export default function Profile() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Connected integrations</Text>
-          <View style={styles.intRow} testID="integration-stripe">
-            <View style={[styles.intIcon, { backgroundColor: 'rgba(127,179,255,0.12)' }]}>
-              <Ionicons name="card" size={16} color="#7FB3FF" />
+          <View style={styles.sectionHeadRow}>
+            <Text style={styles.sectionTitle}>Connected integrations</Text>
+            <Pressable onPress={() => router.push('/integrations')} testID="manage-integrations">
+              <Text style={styles.sectionLink}>
+                Manage <Ionicons name="chevron-forward" size={11} color={colors.brand} />
+              </Text>
+            </Pressable>
+          </View>
+          <Pressable
+            onPress={() => router.push('/integrations')}
+            style={styles.connectionsCard}
+            testID="connections-summary"
+          >
+            <View style={styles.connIconsRow}>
+              {connections.map(c => (
+                <View
+                  key={c.id}
+                  style={[
+                    styles.connIcon,
+                    {
+                      backgroundColor: `${c.color}22`,
+                      borderColor: c.connected ? c.color : colors.borderStrong,
+                      opacity: c.connected ? 1 : 0.4,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={INTEGRATION_ICON[c.id] ?? 'apps'}
+                    size={16}
+                    color={c.connected ? c.color : colors.onSurfaceTertiary}
+                  />
+                </View>
+              ))}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.intLabel}>Stripe</Text>
-              <Text style={styles.intMeta}>
-                {stripe?.connected
-                  ? `Connected · ${stripe.mode} mode`
-                  : 'Not connected · add STRIPE_API_KEY to enable'}
+              <Text style={styles.connSummary}>
+                {connections.filter(c => c.connected).length} of {connections.length} connected
+              </Text>
+              <Text style={styles.connSummarySub}>
+                {connections.filter(c => c.connected).length === 0
+                  ? 'Connect YouTube, Instagram, Stripe, PayPal'
+                  : connections.filter(c => c.connected).map(c => c.name).join(' · ')}
               </Text>
             </View>
-            <View style={[styles.statusDot, { backgroundColor: stripe?.connected ? colors.success : colors.onSurfaceTertiary }]} />
-          </View>
-          <View style={styles.intRow} testID="integration-youtube">
-            <View style={[styles.intIcon, { backgroundColor: 'rgba(255,61,61,0.12)' }]}>
-              <Ionicons name="logo-youtube" size={18} color="#FF3D3D" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.intLabel}>YouTube</Text>
-              <Text style={styles.intMeta}>
-                {user?.youtube_handle ? `@${user.youtube_handle}` : 'Not connected'}
-              </Text>
-            </View>
-            <View style={[styles.statusDot, { backgroundColor: user?.youtube_handle ? colors.success : colors.onSurfaceTertiary }]} />
-          </View>
-          <View style={styles.intRow} testID="integration-instagram">
-            <View style={[styles.intIcon, { backgroundColor: 'rgba(225,48,108,0.12)' }]}>
-              <Ionicons name="logo-instagram" size={18} color="#E1306C" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.intLabel}>Instagram</Text>
-              <Text style={styles.intMeta}>
-                {user?.instagram_handle ? `@${user.instagram_handle} · Graph API coming soon` : 'Not connected'}
-              </Text>
-            </View>
-            <View style={[styles.statusDot, { backgroundColor: user?.instagram_handle ? colors.warning : colors.onSurfaceTertiary }]} />
-          </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.onSurfaceTertiary} />
+          </Pressable>
         </View>
 
         <View style={styles.section}>
@@ -214,6 +228,26 @@ const styles = StyleSheet.create({
 
   section: { paddingHorizontal: spacing.lg, marginTop: spacing.xl },
   sectionTitle: { color: colors.onSurface, fontSize: 13, letterSpacing: 1.2, fontWeight: '600', marginBottom: spacing.md },
+  sectionHeadRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  sectionLink: { color: colors.brand, fontSize: 12, fontWeight: '600' },
+
+  connectionsCard: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: radius.md, padding: spacing.md,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border,
+  },
+  connIconsRow: { flexDirection: 'row', gap: -6 },
+  connIcon: {
+    width: 34, height: 34, borderRadius: 17,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, marginRight: -8,
+  },
+  connSummary: { color: colors.onSurface, fontSize: 14, fontWeight: '600' },
+  connSummarySub: { color: colors.onSurfaceTertiary, fontSize: 11, marginTop: 2 },
 
   card: {
     backgroundColor: colors.surfaceSecondary, borderRadius: radius.md, padding: spacing.lg,

@@ -706,7 +706,7 @@ async def chat_reset(session_id: str, user: dict = Depends(current_user)):
 # Sub-routers
 # ---------------------------------------------------------------------------
 api.include_router(auth_router)
-api.include_router(make_integrations_router())
+api.include_router(make_integrations_router(db, current_user))
 api.include_router(make_competitors_router())
 api.include_router(make_strategy_router(db, EMERGENT_LLM_KEY, current_user))
 api.include_router(make_billing_router(db, current_user))

@@ -1,0 +1,52 @@
+{
+  "summary": "Focused iteration on the NEW Connections Hub (/api/integrations/*) + Stripe/PayPal Checkout (/api/billing/checkout*) feature plus a light core-flow regression. BACKEND: 25/25 GREEN in tests/test_v10_connections_checkout.py. Verified: auth-gate 401 on connections/connect/checkout without bearer; GET /api/integrations/connections lists exactly 4 providers (youtube, instagram, stripe, paypal) with connected=false initially and full meta (name/description/color); POST /{provider}/connect returns ok:true + summary.primary_metric containing 'subs' (yt), 'followers' (ig), 'available' (stripe/paypal); GET /youtube/channel + /instagram/profile return full stats (subscribers/recent_videos/avg_rpm/monthly_earnings, followers/engagement_rate/recent_reels) when connected and 404 when not; /stripe/status + /paypal/status flip connected true→false via disconnect, populating recent_charges/recent_transactions arrays and available_balance numeric; unknown provider (bogus) → 400; empty-account whitespace → 400; POST /api/billing/checkout {tier:'pro',provider:'stripe'} → session_id starts 'cs_stripe_', status='pending', amount=29, currency=usd; provider=paypal → 'cs_paypal_' session; free-tier and unknown-tier checkout both correctly rejected 400; POST /checkout/confirm flips db.users.tier to pro and GET /billing/plan reflects tier=pro; bad session_id → 404; legacy POST /api/billing/upgrade still works and mutates tier. Regression: /dashboard, /portfolio, /competitors/radar, /strategy/plans all 200. FRONTEND (390x844 mobile viewport): all Connections Hub + Checkout UI flows GREEN via audit-token localStorage bypass — connections-summary card on Profile visible showing '0 of 4 connected' with Manage link → routes to /integrations; 4 provider cards render with correct testIDs (provider-youtube/instagram/stripe/paypal); YouTube connect flow (connect-youtube → connect-input='maya' → connect-submit) progressed input→redirect→authorize→success and view-youtube button appears; detail sheet opens with subscribers + RPM text visible; Stripe invalid email 'not-an-email' correctly shows inline 'Please enter a valid email' error before any API call; valid stripe email connects and view-stripe appears; /pricing screen upgrade-pro opens checkout modal showing $29 + method-stripe + method-paypal + checkout-confirm; confirm transitions to processing → success → modal auto-closes → pricing screen reflects Pro tier; Dashboard hero-score renders after the flow (regression). One environmental note: web build renders React Native Alert.alert as window.confirm which the browser-automation runtime auto-dismisses, so the UI 'disconnect-youtube' confirmation could not be positively asserted via automation — the backend disconnect endpoint itself was verified in pytest. Deprecation warning 'props.pointerEvents is deprecated. Use style.pointerEvents' still fires in console (carryover from iter_10, non-blocking).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Global", "issues": ["Residual RN-web console warning `props.pointerEvents is deprecated. Use style.pointerEvents` — same carryover flagged in iter_10; not introduced by this feature."]}
+    ],
+    "react_native_issues": [
+      {"component": "Alert.alert (disconnect confirm)", "issue": "On react-native-web, Alert.alert with confirm/cancel maps to window.confirm which is not testable by browser automation without a dialog handler. If you want to make Disconnect UX-verifiable in playwright tests, either (a) attach a page.on('dialog', ...) hook in the test, or (b) replace Alert.alert with an in-app custom confirmation Modal so disconnect can be exercised end-to-end via testIDs. Reference: /app/frontend/app/integrations.tsx (disconnect handler)"}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v10_connections_checkout.py",
+    "/app/test_reports/pytest/pytest_v10.xml"
+  ],
+  "action_items": [
+    "P3 — Consider replacing Alert.alert disconnect confirmation with an in-app Modal component so the disconnect flow becomes fully browser-testable (currently only the backend disconnect endpoint is provably covered).",
+    "P3 — Same as iter_10 carryover: track down the `props.pointerEvents` deprecation source and migrate to style.pointerEvents.",
+    "OPTIONAL — Add a lightweight polling/UX indicator between /checkout and /checkout/confirm on the pricing modal to communicate the ~0.8s settlement pause (currently shown as processing spinner — works, just noting)."
+  ],
+  "critical_code_review_comments": [
+    "integrations.py — Clean deterministic mock pattern using hashlib-seeded PRNG so the same handle always produces the same stats. Real-API code paths are gated behind env keys and fall through to mocks on any exception. Good defensive design.",
+    "integrations.py:293 — YouTube channel endpoint prefers explicit ?handle= query, falls back to connected account, 404 if neither. Correct.",
+    "integrations.py:411 — Stripe /status returns {connected:false, mode:null, mocked:true} when no connection AND no live key; connected:true with recent_charges when connected. Matches contract.",
+    "billing.py:111 — session_id format `cs_{provider}_{uuid.uuid4().hex[:24]}` — matches PRD requirement of `cs_stripe_` prefix. Good.",
+    "billing.py:129 — /checkout/confirm scopes lookup by both session_id AND user_id — prevents cross-user session hijack. Correct.",
+    "billing.py:108 — Correctly rejects the Free tier from checkout since price_monthly==0. Also rejects unknown tier at line 106.",
+    "integrations.py:225 — Empty/whitespace-only account handles produce 400. Good.",
+    "integrations.py — `_mock_youtube` returns `monthly_earnings` derived from views*RPM/12 which is a defensible mock formula. Non-blocking observation: earnings computed as annualized-views*RPM/12 gives an inflated MTD proxy — fine for demo, not for real billing.",
+    "integrations.tsx:268 — Client-side email regex `/^\\S+@\\S+\\.\\S+$/` is fine for UX gating. Backend does no email validation on stripe/paypal connect accounts (any non-whitespace string accepted). If real Stripe onboarding is ever wired, tighten server-side too.",
+    "pricing.tsx — Payment method radio group implemented with `method-stripe`/`method-paypal` testIDs. Stripe selected by default. Confirm button correctly gated behind selection.",
+    "No hardcoded URLs. Frontend continues to use process.env.EXPO_PUBLIC_BACKEND_URL. Env-key based feature flags for real APIs preserved."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v10_connections_checkout.py (new — 25 tests covering connections hub + checkout + regression)",
+    "/app/test_reports/pytest/pytest_v10.xml (junit — 25 passed in 12.48s)"
+  ],
+  "success_rate": {
+    "backend": "100% (25/25 v10 connections+checkout + regression) — carryover iter_10 v9 audit still green",
+    "frontend": "100% on assertable checks (17/17 assertions across Profile summary, Integrations screen, YouTube connect+detail, Stripe email-validation+connect, Pricing checkout modal + Pro-tier flip, Dashboard regression). 1 non-blocking observation: web Alert.alert confirm not automatable."
+  },
+  "seed_data_creation": "Refreshed persistent audit user in Mongo: users.user_id='user_audit' + user_sessions.session_token='audit-token' (expires +7d) — the prior iter_10 seed had expired. Also cleaned db.connections and db.checkout_sessions for user_audit before running tests, and reset tier to 'free' at the end. Everything is idempotent and safe to re-run.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "New testIDs added in this feature (all verified visible on 390x844): Profile: `connections-summary`, `manage-integrations`, `tier-badge`. Integrations screen: `provider-{youtube,instagram,stripe,paypal}`, `connect-{youtube,instagram,stripe,paypal}`, `view-{youtube,instagram,stripe,paypal}`, `disconnect-{youtube,instagram,stripe,paypal}`, `connect-input`, `connect-submit`, `modal-close`, `detail-close`, `back-btn`. Pricing screen: `tier-{free,pro,studio}`, `upgrade-{free,pro,studio}`, `checkout-close`, `checkout-confirm`, `method-{stripe,paypal}`. API contract for the new endpoints: POST /api/integrations/{provider}/connect requires {account:string}; provider ∈ {youtube,instagram,stripe,paypal}; unknown provider → 400. GET /api/integrations/connections always returns 4 items (order: youtube,instagram,stripe,paypal). GET /api/integrations/youtube/channel and /instagram/profile return 404 when the provider is disconnected. POST /api/billing/checkout {tier,provider}: tier ∈ {pro,studio}; free/unknown → 400; returns session_id 'cs_{provider}_{24hex}'. POST /api/billing/checkout/confirm {session_id}: 404 on unknown session; flips users.tier and marks session complete. Web Alert.alert (used by Disconnect) fires window.confirm on web which browser-automation auto-dismisses — either add page.on('dialog', d=>d.accept()) before clicking `disconnect-*` or replace with an in-app modal.",
+  "rca_of_issue": "N/A — no bug found. Feature-addition test iteration. All new backend endpoints and all new UI flows verified GREEN. Only carryover cosmetic warning (`props.pointerEvents`) noted from iter_10; not introduced by this feature."
+}

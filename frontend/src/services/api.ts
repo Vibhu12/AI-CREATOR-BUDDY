@@ -73,8 +73,30 @@ export const api = {
 
   // Integrations
   stripeStatus:    () => authFetch(`/api/integrations/stripe/status`).then(json),
-  youtubeChannel:  (handle: string) => authFetch(`/api/integrations/youtube/channel?handle=${encodeURIComponent(handle)}`).then(json),
-  instagramProfile: (handle: string) => authFetch(`/api/integrations/instagram/profile?handle=${encodeURIComponent(handle)}`).then(json),
+  paypalStatus:    () => authFetch(`/api/integrations/paypal/status`).then(json),
+  youtubeChannel:  (handle?: string) => authFetch(`/api/integrations/youtube/channel${handle ? `?handle=${encodeURIComponent(handle)}` : ''}`).then(json),
+  instagramProfile: (handle?: string) => authFetch(`/api/integrations/instagram/profile${handle ? `?handle=${encodeURIComponent(handle)}` : ''}`).then(json),
+  connections:     () => authFetch(`/api/integrations/connections`).then(json),
+  connectProvider: (provider: string, account: string) => authFetch(`/api/integrations/${provider}/connect`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ account }),
+  }).then(json),
+  disconnectProvider: (provider: string) => authFetch(`/api/integrations/${provider}/disconnect`, {
+    method: 'POST',
+  }).then(json),
+
+  // Billing
+  billingCheckout: (tier: string, provider: 'stripe' | 'paypal' = 'stripe') => authFetch(`/api/billing/checkout`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tier, provider }),
+  }).then(json),
+  billingConfirm: (session_id: string) => authFetch(`/api/billing/checkout/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id }),
+  }).then(json),
 
   // Auth
   me: () => authFetch(`/api/auth/me`).then(json),
