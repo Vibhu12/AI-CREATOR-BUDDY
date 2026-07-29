@@ -47,6 +47,7 @@ from auth import make_auth_router, ensure_indexes
 from billing import make_billing_router
 from competitors import make_competitors_router
 from integrations import make_integrations_router, YOUTUBE_API_KEY
+from quotas import enforce_chat_message
 from strategy import make_strategy_router
 
 mongo_url = os.environ["MONGO_URL"]
@@ -572,7 +573,9 @@ async def onboarding_status(user: dict = Depends(current_user)):
 @api.post("/dev/reseed")
 async def reseed_starter(user: dict = Depends(current_user)):
     """Reload the Maya starter dataset for the current user. Wipes any existing
-    user-scoped data and reseeds from the template."""
+    user-scoped data and reseeds from the template. DEMO_MODE only."""
+    if os.environ.get("DEMO_MODE", "true").strip().lower() != "true":
+        raise HTTPException(403, "Endpoint disabled in production")
     uid = user["user_id"]
     for coll in ("assets", "goals", "content", "recommendations",
                  "strategy_plans", "chat_messages", "notifications"):
@@ -635,6 +638,9 @@ async def ai_chat(req: ChatRequest, user: dict = Depends(current_user)):
     if not EMERGENT_LLM_KEY:
         raise HTTPException(500, "AI not configured")
 
+    # SEC: enforce message length + free-tier daily quota + burst rate limit
+    await enforce_chat_message(db, user, req.message)
+
     scoped_session = f"{user['user_id']}::{req.session_id}"
 
     await db.chat_messages.insert_one({
@@ -665,7 +671,7 @@ async def ai_chat(req: ChatRequest, user: dict = Depends(current_user)):
                     break
         except Exception as e:
             log.exception("ai stream failed")
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            yield f"data: {json.dumps({'error': 'AI stream failed. Please retry.'})}\n\n"
         assistant_text = "".join(full)
         if assistant_text:
             await db.chat_messages.insert_one({

@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
+import os
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Literal, Optional
@@ -29,8 +30,49 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 import paypal_client
+from quotas import enforce_paypal_order
 
 log = logging.getLogger("billing")
+
+# DEMO_MODE: when "true", mock payment paths (Stripe checkout/confirm, PayPal
+# capture on mocked orders, legacy /upgrade) can flip the user's tier without
+# a real charge. When "false" (production), these paths are rejected — only
+# a verified real-provider webhook / capture can grant paid tiers.
+DEMO_MODE = os.environ.get("DEMO_MODE", "true").strip().lower() == "true"
+
+
+def _reject_mock_upgrade():
+    raise HTTPException(
+        402,
+        "Payment required. Mock-tier upgrades are disabled in production. "
+        "Configure Stripe / PayPal credentials and use a real checkout.",
+    )
+
+
+def _is_safe_callback_url(url: str) -> bool:
+    """Allowlist for PayPal return_url / cancel_url — prevent open-redirect.
+
+    Accepts:
+      - https:// URLs
+      - app deep-link schemes (exp://, creatoros://, myapp://) — anything with
+        a scheme that ISN'T http:// and doesn't look like a bare URL
+    Rejects:
+      - Plain http://
+      - Missing scheme
+      - javascript:, data:, file:
+    """
+    if not url or len(url) > 2000:
+        return False
+    lower = url.strip().lower()
+    if lower.startswith(("javascript:", "data:", "file:", "vbscript:", "http://")):
+        return False
+    if lower.startswith("https://"):
+        return True
+    # Deep-link scheme: <scheme>://... — must have :// and scheme chars only
+    if "://" not in lower:
+        return False
+    scheme = lower.split("://", 1)[0]
+    return scheme.replace("-", "").replace("+", "").isalnum() and len(scheme) <= 40
 
 
 TIERS = {
@@ -147,6 +189,10 @@ def make_billing_router(db, current_user):
     @router.post("/checkout/confirm")
     async def confirm_checkout(req: CheckoutConfirm, user: dict = Depends(current_user)):
         """Confirms a checkout session — flips tier + marks session complete."""
+        # SEC-001: mocked checkout confirm can only flip tier in DEMO_MODE.
+        if not DEMO_MODE:
+            _reject_mock_upgrade()
+
         session = await db.checkout_sessions.find_one(
             {"session_id": req.session_id, "user_id": user["user_id"]},
             {"_id": 0},
@@ -155,6 +201,9 @@ def make_billing_router(db, current_user):
             raise HTTPException(404, "Checkout session not found")
         if session["status"] == "complete":
             return {"ok": True, "tier": session["tier"], "already_complete": True}
+
+        log.warning("DEMO_MODE tier flip via mock checkout for user=%s tier=%s",
+                    user["user_id"], session["tier"])
 
         # Simulate settlement time
         await asyncio.sleep(0.8)
@@ -186,6 +235,11 @@ def make_billing_router(db, current_user):
         session if PayPal keys aren't configured."""
         if req.tier not in TIERS or TIERS[req.tier]["price_monthly"] == 0:
             raise HTTPException(400, f"Cannot checkout tier '{req.tier}'")
+
+        # SEC: burst rate limit + return_url scheme allowlist (open redirect)
+        enforce_paypal_order(user)
+        if not _is_safe_callback_url(req.return_url) or not _is_safe_callback_url(req.cancel_url):
+            raise HTTPException(400, "return_url / cancel_url must use https:// or an app deep-link scheme")
 
         amount = TIERS[req.tier]["price_monthly"]
         description = f"CreatorOS {TIERS[req.tier]['name']} — monthly subscription"
@@ -225,9 +279,9 @@ def make_billing_router(db, current_user):
         except httpx.HTTPStatusError as e:
             log.exception("PayPal create_order failed: %s", e.response.text if e.response else e)
             raise HTTPException(502, "PayPal order creation failed")
-        except Exception as e:
+        except Exception:
             log.exception("PayPal error")
-            raise HTTPException(502, f"PayPal error: {str(e)[:120]}")
+            raise HTTPException(502, "PayPal order creation failed")
 
         # Persist the pending order so /capture can look it up
         session_record = {
@@ -261,6 +315,11 @@ def make_billing_router(db, current_user):
 
         # Mock fallback: if this was a mocked order, complete without hitting PayPal
         if session.get("mocked") or not paypal_client.is_configured():
+            # SEC-001: mock capture can only flip tier in DEMO_MODE.
+            if not DEMO_MODE:
+                _reject_mock_upgrade()
+            log.warning("DEMO_MODE tier flip via mock PayPal capture user=%s tier=%s",
+                        user["user_id"], session["tier"])
             await asyncio.sleep(0.4)
             await db.checkout_sessions.update_one(
                 {"order_id": req.order_id},
@@ -278,9 +337,9 @@ def make_billing_router(db, current_user):
         except httpx.HTTPStatusError as e:
             log.exception("PayPal capture failed: %s", e.response.text if e.response else e)
             raise HTTPException(502, "PayPal capture failed — order not approved or already captured")
-        except Exception as e:
+        except Exception:
             log.exception("PayPal capture error")
-            raise HTTPException(502, f"PayPal error: {str(e)[:120]}")
+            raise HTTPException(502, "PayPal error")
 
         status = capture.get("status", "").upper()
         if status != "COMPLETED":
@@ -317,9 +376,17 @@ def make_billing_router(db, current_user):
 
     @router.post("/upgrade")
     async def upgrade(req: UpgradeRequest, user: dict = Depends(current_user)):
-        """Legacy direct-upgrade — kept for tests. Real flow uses /checkout."""
+        """Legacy direct-upgrade — DEMO_MODE only.
+
+        SEC-001: In production this endpoint would let any user self-grant a
+        paid tier. It's kept behind DEMO_MODE for tests / seeded demos only.
+        """
+        if not DEMO_MODE:
+            raise HTTPException(410, "This endpoint is deprecated. Use /billing/checkout.")
         if req.tier not in TIERS:
             raise HTTPException(400, f"Unknown tier: {req.tier}")
+        log.warning("DEMO_MODE tier flip via legacy /upgrade user=%s tier=%s",
+                    user["user_id"], req.tier)
         await db.users.update_one(
             {"user_id": user["user_id"]},
             {"$set": {"tier": req.tier, "tier_updated_at": datetime.now(timezone.utc)}},

@@ -18,6 +18,8 @@ from emergentintegrations.llm.chat import LlmChat, UserMessage, StreamDone, Text
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from quotas import enforce_strategy_plan
+
 log = logging.getLogger("creatoros.strategy")
 
 
@@ -84,6 +86,12 @@ def make_strategy_router(db, api_key: str, current_user):
             raise HTTPException(400, "horizon_days must be 30, 60, or 90")
         if not api_key:
             raise HTTPException(500, "AI not configured")
+
+        # SEC: enforce free-tier weekly plan limit + burst rate limit
+        await enforce_strategy_plan(db, user)
+
+        if req.focus and len(req.focus) > 500:
+            raise HTTPException(413, "focus too long (max 500 chars)")
 
         user_prompt = (
             f"Generate a {req.horizon_days}-day strategic roadmap. "

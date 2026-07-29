@@ -143,3 +143,18 @@ async def ensure_indexes(db):
         await db.user_sessions.create_index("expires_at", expireAfterSeconds=0)
     except Exception:
         pass
+
+    # Per-user data collections — user_id lookups are the hot path
+    for coll in ("assets", "goals", "content", "recommendations", "notifications",
+                 "strategy_plans", "chat_messages", "connections", "checkout_sessions"):
+        try:
+            await db[coll].create_index("user_id")
+        except Exception:
+            pass
+    # Frequently-joined compound queries
+    try:
+        await db.chat_messages.create_index([("user_id", 1), ("session_id", 1), ("at", 1)])
+        await db.checkout_sessions.create_index([("user_id", 1), ("order_id", 1)])
+        await db.connections.create_index([("user_id", 1), ("provider", 1)], unique=True)
+    except Exception:
+        pass

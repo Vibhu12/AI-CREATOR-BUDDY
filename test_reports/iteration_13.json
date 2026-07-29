@@ -1,0 +1,56 @@
+{
+  "summary": "iter_13 verified SEC-001 (mock-payment tier flip) and SEC-002 (free-tier quotas + rate limits) security fixes. Created /app/backend/tests/test_v13_security_fixes.py — 25 new tests, 100% PASS. Also re-ran regression on v10 (25 tests) and v12 (15 tests) — 100% PASS. Total: 65/65 green in ~61s. Coverage: (A) DEMO_MODE=true — /billing/upgrade, /billing/checkout/confirm, and /billing/paypal/capture (mock) all still flip audit user's tier to pro and persist to db.users. (B) DEMO_MODE=false (env-toggled + backend restarted via supervisorctl inside the fixture) — /billing/upgrade → 410, /billing/checkout/confirm → 402 (verified tier NOT flipped in DB), /billing/paypal/capture (mock) → 402 (tier NOT flipped), /dev/reseed → 403; regression /api/dashboard still 200 in prod mode; DEMO_MODE restored to true and backend restarted at teardown. (C) SEC-002 quotas: POST /ai/chat with empty msg → 400, whitespace-only msg → 400, message > 4000 chars → 413; synthetic free-tier user pre-seeded with 10 user-role chat_messages in last 24h → 11th chat returns 402 with 'Free tier limit reached'; synthetic free-tier user with 1 recent strategy_plan → POST /strategy/plans {horizon_days:30} returns 402; synthetic pro-tier user with 15 chat_messages seeded is NOT blocked (bypasses free daily limit); pro-tier user with 1 recent plan is not blocked with 402 (allows request through — hits AI, we short-circuit on timeout). (D) URL allowlist: http://evil.com → 400, javascript:alert(1) → 400, data:text/html → 400, https://good.example.com → 200, exp://192.168.0.1/... → 200, invalid cancel_url also → 400. (F) Regression /dashboard, /portfolio, /integrations/connections, /billing/plan all 200. NO BUGS FOUND. All 9 fix items in the review request behave as spec'd. Minor observation carried over from iter_12 (P2): GET /api/billing/paypal/status still has no Depends(current_user) — unchanged this iter, so listed under 'minor' again. No expo/react-native issues (backend-only iteration).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/billing/paypal/status",
+        "issue": "Still missing Depends(current_user) — flagged in iter_12 P2 and not addressed this iteration. Leaks nothing (only {configured, mode}) but is inconsistent with the rest of the /billing router. Purely a contract/consistency concern; not security-sensitive."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v13_security_fixes.py",
+    "/app/test_reports/pytest/pytest_v13.xml"
+  ],
+  "action_items": [
+    "None required. All SEC-001 and SEC-002 fixes verified. Suggest keeping DEMO_MODE=true in preview/staging (as-is) and setting DEMO_MODE=false in production launch — the fixture-driven toggle test confirms the production behavior end-to-end.",
+    "OPTIONAL P2 carryover from iter_12 — add Depends(current_user) to GET /api/billing/paypal/status in billing.py:224 for consistency with siblings. Non-blocking.",
+    "OPTIONAL — burst rate limiter in quotas.py is in-process (module-level dict). Fine for single-worker uvicorn but if the app scales to multi-worker or multi-node, swap to Redis. Document this limitation in quotas.py docstring (already partly mentioned)."
+  ],
+  "critical_code_review_comments": [
+    "billing.py:41 — DEMO_MODE = os.environ.get('DEMO_MODE','true').strip().lower()=='true' is read once at module import. Backend restart is required to re-read — test fixture correctly does this via supervisorctl. Good, standard 12-factor pattern.",
+    "billing.py:44-49 — _reject_mock_upgrade raises 402 with a clear customer-safe message. No exception details leaked.",
+    "billing.py:52-75 — _is_safe_callback_url correctly rejects http://, javascript:, data:, file:, vbscript:, and accepts https:// + any deep-link scheme with valid chars. Length cap of 2000 is sensible. Regex-free — simple prefix + scheme parsing.",
+    "billing.py:193, 319, 384 — All three tier-flip paths gate on DEMO_MODE. Good. The 410 on /upgrade (deprecated) vs 402 on checkout/confirm and paypal/capture (payment required) is a nice UX distinction.",
+    "billing.py:241 — enforce_paypal_order called BEFORE the URL allowlist check; the return_url/cancel_url validation happens right after burst check. Correct ordering — burst limiter runs first regardless of payload.",
+    "quotas.py:66-96 — enforce_chat_message: correct order (empty → 400, length → 413, burst → 429, tier daily → 402). Uses ISO-string comparison against 'at' field which matches how chat_messages are stored in server.py:653 (now_utc().isoformat()). Verified with 10 seeded messages returning 402 on 11th.",
+    "quotas.py:99-117 — enforce_strategy_plan: same pattern. created_at ISO-string comparison matches server.py insert format. Verified with 1 seeded plan returning 402 on 2nd.",
+    "quotas.py:40-58 — In-process sliding window is defaultdict(lambda: defaultdict(deque)) — thread-safe under CPython GIL for single-worker. If deployed multi-worker (gunicorn -w N), each worker has its own window → effective limit is N * cap. Acceptable for now; documented in the module docstring already.",
+    "server.py:573-584 — /dev/reseed correctly gates on DEMO_MODE. Uses same env read pattern as billing.py. Note: reads os.environ.get each call (unlike billing.py which caches) — a config change would take effect on next request without restart for this endpoint only. Minor inconsistency, but arguably safer.",
+    "server.py:672-674 — ai/chat stream error path now yields sanitized 'AI stream failed. Please retry.' instead of exception text. No internal state leak.",
+    "auth.py:136-160 — ensure_indexes covers user_id on all 9 data collections + compound indexes on chat_messages (user_id+session_id+at) and checkout_sessions (user_id+order_id) and connections (user_id+provider unique). Startup event correctly awaits this. Good.",
+    "strategy.py:93-94 — focus length cap of 500 chars returns 413. Reasonable. Not tested this iter but code is straightforward.",
+    "No hardcoded URLs in test file; BASE from EXPO_PUBLIC_BACKEND_URL. Test fixtures cleanly wipe synthetic users at teardown."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v13_security_fixes.py (NEW — 25 tests, all pass; toggles DEMO_MODE in .env + restarts backend via supervisorctl for B section, restores on teardown)",
+    "/app/test_reports/pytest/pytest_v13.xml (junit)",
+    "/app/test_reports/iteration_13.json"
+  ],
+  "success_rate": {
+    "backend": "100% (65/65 — 25 v13 new + 25 v10 regression + 15 v12 regression). All SEC-001 and SEC-002 spec items pass exactly as described.",
+    "frontend": "N/A — backend-only iteration per review request scope"
+  },
+  "seed_data_creation": "Two synthetic users created via pymongo direct upsert: (user_v13_free, token=v13-free-token, tier=free) and (user_v13_pro, token=v13-pro-token, tier=pro). Chat messages + strategy plans are seeded per-test as needed and wiped at module teardown. Both users + sessions are deleted at teardown. Audit user (user_audit) is reset to tier=free at both setup and teardown of the test module.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "test_v13_security_fixes.py contains a module fixture that toggles DEMO_MODE in /app/backend/.env and restarts the backend via `sudo -n supervisorctl restart backend` (with fallback to plain `supervisorctl` if -n fails). The B-section class name TestZZDemoModeFalse ensures pytest collects it last so the fixture teardown restores DEMO_MODE=true. Confirmed final .env state after full run: `DEMO_MODE=true`. If you need to re-run only the DEMO_MODE=false block: `pytest backend/tests/test_v13_security_fixes.py::TestZZDemoModeFalse -v`. Audit user tier is reset to 'free' at both start and end of the module. Two synthetic users user_v13_free / user_v13_pro remain deleted post-run. Burst rate limiter is in-process; a full pytest re-run within the same 60s window may push burst counts up but limits are 30/60s for chat which our tests don't approach.",
+  "rca_of_issue": "N/A — no bugs found this iteration. All security fixes verified working per spec."
+}
