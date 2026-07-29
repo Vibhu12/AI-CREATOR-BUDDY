@@ -5,30 +5,39 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { colors, spacing, radius } from '@/src/theme/tokens';
 import { api } from '@/src/services/api';
 import { useAuth } from '@/src/auth/AuthContext';
 
-type CheckoutPhase = 'idle' | 'creating' | 'method' | 'processing' | 'success';
+type CheckoutPhase = 'idle' | 'creating' | 'method' | 'processing' | 'success' | 'error';
 
 export default function Pricing() {
   const router = useRouter();
   const { refreshUser, user } = useAuth();
   const [tiers, setTiers] = useState<any[]>([]);
   const [current, setCurrent] = useState<string>(user?.tier ?? 'free');
+  const [paypalLive, setPaypalLive] = useState<boolean>(false);
+  const [paypalMode, setPaypalMode] = useState<string | null>(null);
 
   // Checkout state
   const [checkoutTier, setCheckoutTier] = useState<any>(null);
   const [phase, setPhase] = useState<CheckoutPhase>('idle');
   const [session, setSession] = useState<any>(null);
   const [provider, setProvider] = useState<'stripe' | 'paypal'>('stripe');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
-        const [plans, plan] = await Promise.all([api.billingPlans(), api.billingPlan()]);
+        const [plans, plan, pp] = await Promise.all([
+          api.billingPlans(), api.billingPlan(), api.paypalConfig(),
+        ]);
         setTiers(plans.tiers);
         setCurrent(plan.tier);
+        setPaypalLive(!!pp.configured);
+        setPaypalMode(pp.mode);
       } catch (e) { console.warn(e); }
     })();
   }, []);
@@ -38,30 +47,75 @@ export default function Pricing() {
     if (tier.price_monthly === 0) return;
     setCheckoutTier(tier);
     setProvider('stripe');
+    setErrorMsg(null);
     setPhase('method');
   };
 
-  const confirmCheckout = async () => {
-    if (!checkoutTier) return;
+  const runStripeCheckout = async () => {
+    // Existing mock Stripe flow — unchanged
     setPhase('creating');
     try {
-      const s = await api.billingCheckout(checkoutTier.id, provider);
+      const s = await api.billingCheckout(checkoutTier.id, 'stripe');
       setSession(s);
       setPhase('processing');
-      await new Promise(r => setTimeout(r, 1400)); // Simulate hosted checkout time
+      await new Promise(r => setTimeout(r, 1400));
       const res = await api.billingConfirm(s.session_id);
       await refreshUser();
       setCurrent(res.tier);
       setPhase('success');
-      setTimeout(() => {
-        setPhase('idle');
-        setCheckoutTier(null);
-        setSession(null);
-      }, 1600);
-    } catch (e) {
-      console.warn(e);
-      setPhase('method');
+      setTimeout(() => { setPhase('idle'); setCheckoutTier(null); setSession(null); }, 1600);
+    } catch (e: any) {
+      setErrorMsg(e?.message ?? 'Checkout failed');
+      setPhase('error');
     }
+  };
+
+  const runPayPalCheckout = async () => {
+    // Real PayPal flow: create order → open approval URL → capture on return
+    setPhase('creating');
+    try {
+      const returnUrl = Linking.createURL('paypal/return');
+      const cancelUrl = Linking.createURL('paypal/cancel');
+      const s = await api.paypalCreateOrder(checkoutTier.id, returnUrl, cancelUrl);
+      setSession(s);
+
+      // If backend returned a real approval_url, open the PayPal hosted page
+      if (s.approval_url && !s.mocked) {
+        setPhase('processing');
+        const result = await WebBrowser.openAuthSessionAsync(s.approval_url, returnUrl);
+        if (result.type !== 'success' || !result.url) {
+          setErrorMsg('Payment was cancelled or dismissed.');
+          setPhase('error');
+          return;
+        }
+        // Extract order id — PayPal appends ?token=<order_id>&PayerID=...
+        const cb = new URL(result.url);
+        const orderId = cb.searchParams.get('token') || s.order_id;
+        const capture = await api.paypalCapture(orderId);
+        await refreshUser();
+        setCurrent(capture.tier);
+        setPhase('success');
+        setTimeout(() => { setPhase('idle'); setCheckoutTier(null); setSession(null); }, 1600);
+      } else {
+        // Fallback: mocked PayPal path (no keys) — simulate + capture
+        setPhase('processing');
+        await new Promise(r => setTimeout(r, 1400));
+        const capture = await api.paypalCapture(s.order_id);
+        await refreshUser();
+        setCurrent(capture.tier);
+        setPhase('success');
+        setTimeout(() => { setPhase('idle'); setCheckoutTier(null); setSession(null); }, 1600);
+      }
+    } catch (e: any) {
+      setErrorMsg(e?.message ?? 'PayPal checkout failed');
+      setPhase('error');
+    }
+  };
+
+  const confirmCheckout = () => {
+    setErrorMsg(null);
+    if (provider === 'paypal') runPayPalCheckout();
+    else runStripeCheckout();
   };
 
   const closeCheckout = () => {
@@ -69,6 +123,7 @@ export default function Pricing() {
     setPhase('idle');
     setCheckoutTier(null);
     setSession(null);
+    setErrorMsg(null);
   };
 
   return (
@@ -157,7 +212,9 @@ export default function Pricing() {
         <View style={styles.note}>
           <Ionicons name="shield-checkmark-outline" size={14} color={colors.brand} />
           <Text style={styles.noteText}>
-            Powered by Stripe and PayPal. Checkout is simulated for demo — plug in real keys anytime.
+            {paypalLive
+              ? `PayPal is live in ${paypalMode} mode. Stripe checkout is simulated.`
+              : 'Powered by Stripe and PayPal. Checkout is simulated for demo — plug in real keys anytime.'}
           </Text>
         </View>
       </ScrollView>
@@ -170,6 +227,10 @@ export default function Pricing() {
         setProvider={setProvider}
         onConfirm={confirmCheckout}
         onClose={closeCheckout}
+        paypalLive={paypalLive}
+        paypalMode={paypalMode}
+        errorMsg={errorMsg}
+        onRetry={() => setPhase('method')}
       />
     </View>
   );
@@ -178,6 +239,7 @@ export default function Pricing() {
 
 function CheckoutModal({
   tier, phase, session, provider, setProvider, onConfirm, onClose,
+  paypalLive, paypalMode, errorMsg, onRetry,
 }: {
   tier: any;
   phase: CheckoutPhase;
@@ -186,6 +248,10 @@ function CheckoutModal({
   setProvider: (p: 'stripe' | 'paypal') => void;
   onConfirm: () => void;
   onClose: () => void;
+  paypalLive: boolean;
+  paypalMode: string | null;
+  errorMsg: string | null;
+  onRetry: () => void;
 }) {
   if (!tier || phase === 'idle') return null;
   const busy = phase === 'creating' || phase === 'processing';
@@ -231,12 +297,13 @@ function CheckoutModal({
                 />
                 <PaymentOption
                   id="paypal"
-                  name="PayPal"
-                  desc="Pay with your PayPal balance"
+                  name={paypalLive ? `PayPal · ${(paypalMode ?? 'live').toUpperCase()}` : 'PayPal'}
+                  desc={paypalLive ? 'Real PayPal Checkout' : 'Pay with your PayPal balance'}
                   icon="wallet"
                   color="#0070BA"
                   selected={provider === 'paypal'}
                   onPress={() => setProvider('paypal')}
+                  live={paypalLive}
                 />
               </View>
               <Pressable onPress={onConfirm} style={styles.payBtn} testID="checkout-confirm">
@@ -244,9 +311,29 @@ function CheckoutModal({
                 <Text style={styles.payBtnText}>Pay ${tier.price_monthly} securely</Text>
               </Pressable>
               <Text style={styles.disclaimer}>
-                Your subscription auto-renews monthly. Cancel anytime in Profile.
+                {provider === 'paypal' && paypalLive
+                  ? `PayPal will open in a secure browser window for approval.`
+                  : `Your subscription auto-renews monthly. Cancel anytime in Profile.`}
               </Text>
             </>
+          )}
+
+          {phase === 'error' && (
+            <View style={styles.processingBlock}>
+              <View style={styles.errorCircle}>
+                <Ionicons name="alert" size={28} color={colors.error} />
+              </View>
+              <Text style={styles.processingTitle}>{`Checkout couldn't complete`}</Text>
+              <Text style={styles.processingSub}>{errorMsg ?? 'Please try again.'}</Text>
+              <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+                <Pressable onPress={onClose} style={styles.retryBtnGhost} testID="checkout-cancel-error">
+                  <Text style={styles.retryBtnGhostText}>Cancel</Text>
+                </Pressable>
+                <Pressable onPress={onRetry} style={styles.retryBtn} testID="checkout-retry">
+                  <Text style={styles.retryBtnText}>Try again</Text>
+                </Pressable>
+              </View>
+            </View>
           )}
 
           {(phase === 'creating' || phase === 'processing') && (
@@ -281,10 +368,10 @@ function CheckoutModal({
 
 
 function PaymentOption({
-  id, name, desc, icon, color, selected, onPress,
+  id, name, desc, icon, color, selected, onPress, live,
 }: {
   id: string; name: string; desc: string; icon: any; color: string;
-  selected: boolean; onPress: () => void;
+  selected: boolean; onPress: () => void; live?: boolean;
 }) {
   return (
     <Pressable
@@ -296,7 +383,15 @@ function PaymentOption({
         <Ionicons name={icon} size={16} color={color} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={styles.payName}>{name}</Text>
+        <View style={styles.payNameRow}>
+          <Text style={styles.payName}>{name}</Text>
+          {live && (
+            <View style={styles.livePill}>
+              <View style={styles.livePulse} />
+              <Text style={styles.livePillText}>LIVE</Text>
+            </View>
+          )}
+        </View>
         <Text style={styles.payDesc}>{desc}</Text>
       </View>
       <View style={[styles.radio, selected && { borderColor: color }]}>
@@ -453,4 +548,31 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(69,201,122,0.18)',
     borderWidth: 2, borderColor: 'rgba(69,201,122,0.66)',
   },
+  errorCircle: {
+    width: 60, height: 60, borderRadius: 30,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(229,72,77,0.16)',
+    borderWidth: 2, borderColor: 'rgba(229,72,77,0.5)',
+  },
+  retryBtn: {
+    backgroundColor: colors.brand,
+    paddingHorizontal: spacing.lg, paddingVertical: 10,
+    borderRadius: radius.sm,
+  },
+  retryBtnText: { color: colors.onBrandPrimary, fontSize: 13, fontWeight: '700' },
+  retryBtnGhost: {
+    borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong,
+    paddingHorizontal: spacing.lg, paddingVertical: 10,
+    borderRadius: radius.sm,
+  },
+  retryBtnGhostText: { color: colors.onSurfaceSecondary, fontSize: 13, fontWeight: '600' },
+
+  payNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  livePill: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: 'rgba(69,201,122,0.14)',
+    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4,
+  },
+  livePulse: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: colors.success },
+  livePillText: { color: colors.success, fontSize: 8, fontWeight: '800', letterSpacing: 0.6 },
 });

@@ -97,6 +97,18 @@ export const api = {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ session_id }),
   }).then(json),
+  // PayPal Orders v2
+  paypalConfig:       () => authFetch(`/api/billing/paypal/status`).then(json),
+  paypalCreateOrder:  (tier: string, return_url: string, cancel_url: string) => authFetch(`/api/billing/paypal/create-order`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tier, return_url, cancel_url }),
+  }).then(json),
+  paypalCapture:      (order_id: string) => authFetch(`/api/billing/paypal/capture`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ order_id }),
+  }).then(json),
 
   // Auth
   me: () => authFetch(`/api/auth/me`).then(json),

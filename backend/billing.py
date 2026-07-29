@@ -6,22 +6,31 @@ Three tiers:
   - studio : $99/mo, everything + white-label report export (future)
 
 Endpoints:
-  GET  /billing/plan            → { tier, features, limits }
-  GET  /billing/plans           → list all tiers
-  POST /billing/checkout        → create a mock checkout session (Stripe or PayPal)
-  POST /billing/checkout/confirm→ confirm the session and switch tier
-  POST /billing/upgrade         → legacy direct upgrade (kept for compat)
+  GET  /billing/plan                     → { tier, features, limits }
+  GET  /billing/plans                    → list all tiers
+  POST /billing/checkout                 → create a mock checkout session (Stripe or PayPal)
+  POST /billing/checkout/confirm         → confirm the session and switch tier
+  POST /billing/paypal/create-order      → real PayPal Orders v2 order (needs env keys)
+  POST /billing/paypal/capture           → capture real order + flip tier
+  GET  /billing/paypal/status            → { configured, mode }
+  POST /billing/upgrade                  → legacy direct upgrade (kept for compat)
 """
 from __future__ import annotations
 
 import asyncio
 import hashlib
+import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+
+import paypal_client
+
+log = logging.getLogger("billing")
 
 
 TIERS = {
@@ -83,6 +92,16 @@ class CheckoutRequest(BaseModel):
 
 class CheckoutConfirm(BaseModel):
     session_id: str
+
+
+class PayPalCreateRequest(BaseModel):
+    tier: str
+    return_url: str  # Deep-link back to app on success (e.g. creatoros://paypal/return)
+    cancel_url: str  # Deep-link back to app on cancel
+
+
+class PayPalCaptureRequest(BaseModel):
+    order_id: str
 
 
 def make_billing_router(db, current_user):
@@ -149,6 +168,150 @@ def make_billing_router(db, current_user):
             {"$set": {"tier": session["tier"], "tier_updated_at": datetime.now(timezone.utc)}},
         )
         return {"ok": True, "tier": session["tier"], "provider": session["provider"], "mocked": True}
+
+    # -----------------------------------------------------------------------
+    # PayPal Orders v2 — real integration (dormant when keys not set)
+    # -----------------------------------------------------------------------
+    @router.get("/paypal/status")
+    async def paypal_status():
+        return {
+            "configured": paypal_client.is_configured(),
+            "mode": paypal_client.PAYPAL_MODE if paypal_client.is_configured() else None,
+        }
+
+    @router.post("/paypal/create-order")
+    async def paypal_create_order(req: PayPalCreateRequest, user: dict = Depends(current_user)):
+        """Creates a PayPal Orders v2 order for the given tier and returns the
+        approval_url the app should open. Falls back to the mock checkout
+        session if PayPal keys aren't configured."""
+        if req.tier not in TIERS or TIERS[req.tier]["price_monthly"] == 0:
+            raise HTTPException(400, f"Cannot checkout tier '{req.tier}'")
+
+        amount = TIERS[req.tier]["price_monthly"]
+        description = f"CreatorOS {TIERS[req.tier]['name']} — monthly subscription"
+        reference_id = f"co_{user['user_id'][:8]}_{uuid.uuid4().hex[:12]}"
+
+        # Fallback path: keys not set — return a mock session so UX still works
+        if not paypal_client.is_configured():
+            session_id = f"cs_paypal_{uuid.uuid4().hex[:24]}"
+            session = {
+                "session_id": session_id,
+                "user_id": user["user_id"],
+                "tier": req.tier,
+                "provider": "paypal",
+                "amount": amount,
+                "currency": "usd",
+                "status": "pending",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "checkout_url": f"https://checkout.creatoros.mock/paypal/{session_id}",
+                "mocked": True,
+            }
+            await db.checkout_sessions.insert_one(session)
+            session.pop("_id", None)
+            return {**session, "order_id": session_id, "approval_url": None}
+
+        # Real PayPal flow
+        try:
+            order = await paypal_client.create_order(
+                amount=float(amount),
+                currency="USD",
+                reference_id=reference_id,
+                description=description,
+                return_url=req.return_url,
+                cancel_url=req.cancel_url,
+            )
+        except httpx.HTTPStatusError as e:
+            log.exception("PayPal create_order failed: %s", e.response.text if e.response else e)
+            raise HTTPException(502, "PayPal order creation failed")
+        except Exception as e:
+            log.exception("PayPal error")
+            raise HTTPException(502, f"PayPal error: {str(e)[:120]}")
+
+        # Persist the pending order so /capture can look it up
+        session_record = {
+            "session_id": order["id"],
+            "order_id": order["id"],
+            "user_id": user["user_id"],
+            "tier": req.tier,
+            "provider": "paypal",
+            "amount": amount,
+            "currency": "usd",
+            "status": order.get("status", "CREATED").lower(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "approval_url": order.get("approval_url"),
+            "mocked": False,
+        }
+        await db.checkout_sessions.insert_one(session_record)
+        session_record.pop("_id", None)
+        return session_record
+
+    @router.post("/paypal/capture")
+    async def paypal_capture(req: PayPalCaptureRequest, user: dict = Depends(current_user)):
+        """Captures an approved PayPal order and flips the user's tier."""
+        session = await db.checkout_sessions.find_one(
+            {"order_id": req.order_id, "user_id": user["user_id"]},
+            {"_id": 0},
+        )
+        if not session:
+            raise HTTPException(404, "PayPal order not found for this user")
+        if session["status"] == "complete":
+            return {"ok": True, "tier": session["tier"], "already_complete": True}
+
+        # Mock fallback: if this was a mocked order, complete without hitting PayPal
+        if session.get("mocked") or not paypal_client.is_configured():
+            await asyncio.sleep(0.4)
+            await db.checkout_sessions.update_one(
+                {"order_id": req.order_id},
+                {"$set": {"status": "complete", "completed_at": datetime.now(timezone.utc).isoformat()}},
+            )
+            await db.users.update_one(
+                {"user_id": user["user_id"]},
+                {"$set": {"tier": session["tier"], "tier_updated_at": datetime.now(timezone.utc)}},
+            )
+            return {"ok": True, "tier": session["tier"], "provider": "paypal", "mocked": True}
+
+        # Real capture
+        try:
+            capture = await paypal_client.capture_order(req.order_id)
+        except httpx.HTTPStatusError as e:
+            log.exception("PayPal capture failed: %s", e.response.text if e.response else e)
+            raise HTTPException(502, "PayPal capture failed — order not approved or already captured")
+        except Exception as e:
+            log.exception("PayPal capture error")
+            raise HTTPException(502, f"PayPal error: {str(e)[:120]}")
+
+        status = capture.get("status", "").upper()
+        if status != "COMPLETED":
+            raise HTTPException(400, f"PayPal capture status: {status}")
+
+        # Extract capture id for auditing
+        capture_id: Optional[str] = None
+        try:
+            capture_id = capture["purchase_units"][0]["payments"]["captures"][0]["id"]
+        except (KeyError, IndexError):
+            pass
+
+        await db.checkout_sessions.update_one(
+            {"order_id": req.order_id},
+            {"$set": {
+                "status": "complete",
+                "completed_at": datetime.now(timezone.utc).isoformat(),
+                "capture_id": capture_id,
+                "capture_payload": capture,
+            }},
+        )
+        await db.users.update_one(
+            {"user_id": user["user_id"]},
+            {"$set": {"tier": session["tier"], "tier_updated_at": datetime.now(timezone.utc)}},
+        )
+        return {
+            "ok": True,
+            "tier": session["tier"],
+            "provider": "paypal",
+            "mode": paypal_client.PAYPAL_MODE,
+            "capture_id": capture_id,
+            "mocked": False,
+        }
 
     @router.post("/upgrade")
     async def upgrade(req: UpgradeRequest, user: dict = Depends(current_user)):

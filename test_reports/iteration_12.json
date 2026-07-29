@@ -1,0 +1,65 @@
+{
+  "summary": "iter_12 focused on new PayPal Orders v2 integration (mock-fallback path since PAYPAL_CLIENT_ID/SECRET are empty). Wrote /app/backend/tests/test_v12_paypal_orders.py — 15 tests, 12 PASS / 3 FAIL. CRITICAL BUG FOUND: the mock-fallback path in POST /api/billing/paypal/create-order returns `order_id` in the JSON response but never persists that field to db.checkout_sessions. It only writes `session_id`. Then POST /api/billing/paypal/capture queries `db.checkout_sessions.find_one({order_id: req.order_id, user_id: ...})` and always returns 404 — the entire mock flow is broken end-to-end. Reproduced with a raw curl: create-order returned session_id='cs_paypal_139981844a834c9baafff3a9' + order_id='cs_paypal_139981844a834c9baafff3a9', immediate capture with that same value → 404 'PayPal order not found for this user'. The real-PayPal branch (line 231-244) correctly stores `order_id`; only the mock branch (line 197-211) forgot it. Fix is one line: add `\"order_id\": session_id` to the mock session dict before `db.checkout_sessions.insert_one(...)`. WHAT PASSES: /api/billing/paypal/status returns {configured:false, mode:null} correctly; create-order for pro returns mocked:true, provider:paypal, tier:pro, amount:29, approval_url:null, status:pending, order_id starts 'cs_paypal_'; studio path returns amount:99; free tier and unknown tier both correctly 400; auth-gate returns 401 on create-order & capture without bearer; capture with a genuinely unknown order_id returns 404 (correct — but this is only 'correct' because ALL mock orders look unknown due to the bug); regression on /api/integrations/connections (4 providers), /api/billing/checkout (Stripe cs_stripe_ + tier flip), /api/billing/upgrade all still green. MINOR OBSERVATION: /api/billing/paypal/status has no auth dependency in the code (billing.py:175) despite the review request stating 'auth required' — the endpoint currently returns 200 without a bearer token. Not security-sensitive (leaks nothing), but a contract mismatch. Frontend testing was intentionally skipped per the review request (mock flow already covered in iter_11 checkout-confirm test; real WebBrowser path not testable without live keys). No expo/react-native deprecated packages or SafeAreaView issues introduced by this iteration.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/billing/paypal/create-order (mock fallback) + POST /api/billing/paypal/capture",
+        "issue": "Mock-fallback branch in paypal_create_order (billing.py:197-211) stores only `session_id` in db.checkout_sessions but never `order_id`. The capture endpoint (billing.py:251-254) looks up by `order_id` → every mock capture returns 404 'PayPal order not found for this user'. Tier never flips. Feature is 100% broken in the mock path. One-line fix: add `\"order_id\": session_id,` to the mock session dict, matching the real-flow branch at line 233.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "GET /api/billing/paypal/status",
+        "issue": "Review request states this endpoint requires auth, but billing.py:176 defines it without `Depends(current_user)`. Currently returns 200 to unauthenticated callers. Either add the dep or update the spec — no data leak either way (only exposes {configured, mode})."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Pricing → PayPal mock checkout",
+        "issue": "Because the create-order → capture backend flow is broken (see backend CRITICAL), the UI PayPal path in /app/frontend/app/pricing.tsx will get a 200 on create-order followed by a 404 on capture — user will see the error state (checkout-retry / checkout-cancel-error) instead of a tier flip. Not exercised by playwright this iteration (skipped per request) but will fail once fix is applied and retested.",
+        "affected_testIDs": ["upgrade-pro", "method-paypal", "checkout-confirm", "checkout-retry", "checkout-cancel-error"]
+      }
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v12_paypal_orders.py",
+    "/app/test_reports/pytest/pytest_v12.xml"
+  ],
+  "action_items": [
+    "P0 / CRITICAL — In /app/backend/billing.py, inside the `if not paypal_client.is_configured():` fallback of `paypal_create_order` (approx lines 197-211), add `\"order_id\": session_id,` to the `session` dict before `db.checkout_sessions.insert_one(session)`. This makes the capture lookup succeed and unblocks the entire mock PayPal flow. After fixing, re-run `pytest /app/backend/tests/test_v12_paypal_orders.py -v` — all 15 tests should pass.",
+    "P2 — Decide whether `/api/billing/paypal/status` should require auth. If yes, add `user: dict = Depends(current_user)` to the handler at billing.py:176. If no, update the review-request contract comment accordingly.",
+    "P3 — Consider consolidating the mock-fallback session shape with the real-flow session shape (both branches build near-identical dicts) — extract a helper to avoid this class of drift bug in future."
+  ],
+  "critical_code_review_comments": [
+    "billing.py:197-211 (BUG SOURCE) — mock-fallback branch writes `session_id` but not `order_id`; the response spreads `{**session, 'order_id': session_id}` so the API consumer sees `order_id`, but the DB doc has no `order_id` key. Capture (billing.py:252) filters by `order_id` → guaranteed 404. Classic 'response-vs-persistence divergence'. Fix by adding the field to the persisted doc, not just the returned dict.",
+    "billing.py:175-180 — `/paypal/status` handler has no `Depends(current_user)`. Everywhere else in this router uses it. Likely oversight. Doesn't leak data but breaks the auth-gate contract.",
+    "paypal_client.py:21-25 — Env is read at import time and cached in module-level constants (`PAYPAL_CLIENT_ID`, `_BASE`). Fine for prod but means adding keys later requires a backend restart — worth documenting.",
+    "paypal_client.py — Uses async httpx + PayPal-Request-Id for idempotency on both create and capture. Modern, correct approach. Good.",
+    "billing.py:187 — `if req.tier not in TIERS or TIERS[req.tier]['price_monthly'] == 0:` correctly rejects both 'free' and unknown tiers with a single 400 (matches spec).",
+    "billing.py:251-253 — capture lookup is user_id-scoped (prevents cross-user capture hijack). Good.",
+    "billing.py:261 — capture correctly branches on `session.get('mocked')` OR `not paypal_client.is_configured()` — defensive OR, handles the case where keys are added between create and capture. Good.",
+    "billing.py:290 — capture_id extraction wrapped in try/except (KeyError, IndexError) — sensible for PayPal's nested response shape.",
+    "No hardcoded URLs. httpx timeout set to 15-20s. Errors mapped to 502 with truncated messages — no PII leak.",
+    "paypal_client.py has no unit tests since PayPal keys aren't set — acceptable, but once keys are added the get_access_token cache + create_order path should be exercised with the sandbox."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v12_paypal_orders.py (NEW — 15 tests: 12 pass, 3 fail exposing the mock-persistence bug)",
+    "/app/test_reports/pytest/pytest_v12.xml (junit output)",
+    "/app/test_reports/iteration_12.json"
+  ],
+  "success_rate": {
+    "backend": "80% (12/15 v12 PayPal tests; 3 failures all stem from ONE root-cause: missing `order_id` field in mock-fallback persistence). Regression on iter_11 endpoints: 100% (connections=4 providers, /billing/checkout + confirm flips tier, /billing/upgrade works).",
+    "frontend": "N/A — frontend testing intentionally skipped per review-request scope"
+  },
+  "seed_data_creation": "Reused existing audit user (user_audit / audit-token). Test file resets tier to free at start of each capture test and again at teardown (test_zz_teardown_restore_free_tier) so downstream iterations get a clean tier=free.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The critical bug is a single missing key in a dict. After main agent applies the one-line fix `\"order_id\": session_id,` inside the mock-fallback session dict in billing.py:~197-208 (matching the real-flow session_record at line 233), re-run: `EXPO_PUBLIC_BACKEND_URL=<url> pytest /app/backend/tests/test_v12_paypal_orders.py -v --junitxml=/app/test_reports/pytest/pytest_v12_retest.xml`. All 15 tests should go green. Note the state dict `_state` in the test file carries pro_order_id and studio_order_id across tests — pytest default is to run in file order, which is fine here. Frontend retest of pricing.tsx PayPal path is optional post-fix — the mock UX collapses to essentially the same thing as Stripe once capture works (no WebBrowser opened, straight to processing→success). testIDs to hit: upgrade-pro → method-paypal → checkout-confirm → assert tier-badge shows Pro. If wanting to test the error state, upgrade-pro → method-paypal → checkout-confirm → assert (given bug fix, error only shows on real 5xx which is not reproducible in mock).",
+  "rca_of_issue": "Root cause: in /app/backend/billing.py, the `paypal_create_order` endpoint has two branches — real PayPal (when keys are set) and a mock fallback (when keys are empty). The real branch (lines 231-244) constructs a session_record with BOTH `session_id` AND `order_id` fields (both equal to the PayPal order id) and inserts it into db.checkout_sessions. The mock fallback branch (lines 197-208) constructs a session dict with only `session_id` — it forgets `order_id`. The response body then does `return {**session, 'order_id': session_id, 'approval_url': None}` which adds order_id to the RESPONSE but not the persisted document. Later, `paypal_capture` (line 251) does `db.checkout_sessions.find_one({'order_id': req.order_id, 'user_id': ...})` — since no mock document has an `order_id` field, this always returns None → 404. Reproduction: 1) POST /api/billing/paypal/create-order {tier:'pro', return_url:'x', cancel_url:'y'} with bearer 'audit-token' → note the returned order_id. 2) POST /api/billing/paypal/capture {order_id: <the value from step 1>} → 404 'PayPal order not found for this user'. Mitigation / fix: add `\"order_id\": session_id,` to the session dict at ~line 199 (or anywhere between session_id and mocked). One-line change. After fix, 3 currently-failing tests (test_paypal_capture_flips_tier_to_pro, test_paypal_capture_idempotent_second_call, test_paypal_capture_studio_order_flips_tier) will pass."
+}

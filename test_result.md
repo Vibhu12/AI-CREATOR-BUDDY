@@ -228,3 +228,28 @@ agent_communication:
            closes. Profile shows updated tier.
         5. Regression: existing dashboard, portfolio, ai coach, strategy,
            competitors, notifications still functional.
+
+    -agent: "main"
+    -message: |
+        Option B — Real PayPal Orders v2 wired (iter_12). Keys NOT set (user
+        chose dormant install). Please test backend degrades gracefully:
+        1. GET /api/billing/paypal/status → {configured: false, mode: null}
+        2. POST /api/billing/paypal/create-order {tier:"pro", return_url,
+           cancel_url} → returns MOCKED session with mocked:true,
+           approval_url:null. Free/unknown tier → 400.
+        3. POST /api/billing/paypal/capture {order_id} → flips tier to pro
+           for mocked session; 404 if order_id unknown for that user.
+        4. Legacy flows /billing/checkout, /billing/checkout/confirm,
+           /billing/upgrade still work.
+        5. When PAYPAL_CLIENT_ID + PAYPAL_CLIENT_SECRET env vars are set,
+           create-order should hit real PayPal sandbox — but we do NOT test
+           this path here since keys are absent.
+
+        Frontend: Pricing screen unchanged UX for Stripe. Selecting PayPal
+        method now routes through paypal/create-order → paypalCapture. When
+        approval_url is null (no keys), mock capture completes locally.
+        LIVE badge shows on PayPal option only when paypalConfig() returns
+        {configured: true}.
+
+        Please rerun regression on connections hub + pricing to confirm no
+        regressions.
