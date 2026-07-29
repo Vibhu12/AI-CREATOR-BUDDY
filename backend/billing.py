@@ -173,7 +173,7 @@ def make_billing_router(db, current_user):
     # PayPal Orders v2 — real integration (dormant when keys not set)
     # -----------------------------------------------------------------------
     @router.get("/paypal/status")
-    async def paypal_status():
+    async def paypal_status(user: dict = Depends(current_user)):
         return {
             "configured": paypal_client.is_configured(),
             "mode": paypal_client.PAYPAL_MODE if paypal_client.is_configured() else None,
@@ -196,6 +196,7 @@ def make_billing_router(db, current_user):
             session_id = f"cs_paypal_{uuid.uuid4().hex[:24]}"
             session = {
                 "session_id": session_id,
+                "order_id": session_id,   # so /capture can look it up by order_id
                 "user_id": user["user_id"],
                 "tier": req.tier,
                 "provider": "paypal",
@@ -204,11 +205,12 @@ def make_billing_router(db, current_user):
                 "status": "pending",
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "checkout_url": f"https://checkout.creatoros.mock/paypal/{session_id}",
+                "approval_url": None,
                 "mocked": True,
             }
             await db.checkout_sessions.insert_one(session)
             session.pop("_id", None)
-            return {**session, "order_id": session_id, "approval_url": None}
+            return session
 
         # Real PayPal flow
         try:
