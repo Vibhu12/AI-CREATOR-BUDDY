@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Polyline } from 'react-native-svg';
 import { colors, spacing, radius, fmtCurrency, fmtCompact, platformMeta } from '@/src/theme/tokens';
@@ -22,10 +23,10 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
   );
 }
 
-function AssetRow({ asset }: { asset: any }) {
+function AssetRow({ asset, onPress }: { asset: any; onPress: () => void }) {
   const meta = platformMeta[asset.platform] ?? { label: asset.platform, color: colors.brand, emoji: '◇' };
   return (
-    <Pressable style={styles.row} testID={`asset-${asset.id}`}>
+    <Pressable style={styles.row} onPress={onPress} testID={`asset-${asset.id}`}>
       <View style={[styles.avatar, { backgroundColor: `${meta.color}22`, borderColor: `${meta.color}55` }]}>
         <Text style={[styles.avatarGlyph, { color: meta.color }]}>{meta.emoji}</Text>
       </View>
@@ -45,11 +46,13 @@ function AssetRow({ asset }: { asset: any }) {
         <Text style={styles.revenue}>{fmtCurrency(asset.revenue_mtd)}</Text>
         <Sparkline data={asset.trend} color={asset.ai_score >= 75 ? colors.success : colors.brand} />
       </View>
+      <Ionicons name="chevron-forward" size={16} color={colors.onSurfaceTertiary} />
     </Pressable>
   );
 }
 
 export default function Portfolio() {
+  const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
@@ -102,7 +105,13 @@ export default function Portfolio() {
         contentContainerStyle={{ paddingBottom: 120, paddingTop: spacing.md }}
         refreshControl={<RefreshControl tintColor={colors.brand} refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
       >
-        {data.assets.map((a: any) => <AssetRow key={a.id} asset={a} />)}
+        {data.assets.map((a: any) => (
+          <AssetRow
+            key={a.id}
+            asset={a}
+            onPress={() => router.push(`/asset/${a.id}`)}
+          />
+        ))}
       </ScrollView>
 
       <AddAssetModal

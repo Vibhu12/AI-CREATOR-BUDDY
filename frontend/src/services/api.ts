@@ -32,6 +32,18 @@ export const api = {
   content:         () => authFetch(`/api/content`).then(json),
   finance:         () => authFetch(`/api/finance`).then(json),
   goals:           () => authFetch(`/api/goals`).then(json),
+  createGoal:      (body: any) => authFetch(`/api/goals`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then(json),
+  updateGoal:      (id: string, body: any) => authFetch(`/api/goals/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then(json),
+  deleteGoal:      (id: string) => authFetch(`/api/goals/${id}`, { method: 'DELETE' }).then(json),
+  assetDetail:     (id: string) => authFetch(`/api/assets/${id}`).then(json),
   recommendations: () => authFetch(`/api/recommendations`).then(json),
 
   // Notifications

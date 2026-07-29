@@ -26,6 +26,7 @@ import logging
 import os
 import random
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import List, Optional, Literal
@@ -56,7 +57,17 @@ db = client[os.environ["DB_NAME"]]
 
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
 
-app = FastAPI(title="CreatorOS API")
+
+@asynccontextmanager
+async def lifespan(app_: FastAPI):
+    # Startup
+    await ensure_indexes(db)
+    yield
+    # Shutdown
+    client.close()
+
+
+app = FastAPI(title="CreatorOS API", lifespan=lifespan)
 api = APIRouter(prefix="/api")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s — %(message)s")
@@ -491,6 +502,57 @@ async def get_finance(user: dict = Depends(current_user)):
     revenue = sum(d["revenue"] for d in series)
     expense = sum(d["expense"] for d in series)
     profit = revenue - expense
+
+    # Revenue breakdown by asset (sorted desc)
+    by_asset = sorted(
+        [
+            {
+                "id": a.get("id"),
+                "name": a.get("name"),
+                "platform": a.get("platform"),
+                "revenue_mtd": round(a.get("revenue_mtd", 0), 2),
+                "profit_mtd": round(a.get("profit_mtd", 0), 2),
+                "share": round((a.get("revenue_mtd", 0) / total_rev_mtd * 100), 1) if total_rev_mtd else 0,
+            }
+            for a in assets
+        ],
+        key=lambda x: -x["revenue_mtd"],
+    )
+
+    # Aggregate by platform for the donut / bar
+    plat_totals: dict = {}
+    for a in assets:
+        p = a.get("platform") or "other"
+        plat_totals[p] = plat_totals.get(p, 0) + a.get("revenue_mtd", 0)
+    by_platform = sorted(
+        [
+            {"platform": p, "revenue_mtd": round(v, 2),
+             "share": round((v / total_rev_mtd * 100), 1) if total_rev_mtd else 0}
+            for p, v in plat_totals.items()
+        ],
+        key=lambda x: -x["revenue_mtd"],
+    )
+
+    # Simple expense category split (synthetic but stable per user)
+    _rng = random.Random(_hash_seed(user["user_id"]) + 3)
+    exp_categories = [
+        {"label": "Team + contractors", "share": 42, "amount": round(expense * 0.42, 2)},
+        {"label": "Software + tools", "share": 14, "amount": round(expense * 0.14, 2)},
+        {"label": "Advertising", "share": 22, "amount": round(expense * 0.22, 2)},
+        {"label": "Ops + platform fees", "share": 12, "amount": round(expense * 0.12, 2)},
+        {"label": "Other", "share": 10, "amount": round(expense * 0.10, 2)},
+    ]
+
+    # 90-day forward projection (simple linear + slight growth)
+    proj = []
+    last_rev = series[-1]["revenue"] if series else daily_rev
+    last_exp = series[-1]["expense"] if series else daily_exp
+    for i in range(1, 91):
+        d = (now_utc().date() + timedelta(days=i)).isoformat()
+        rev = last_rev * (1 + 0.0028 * i) + _rng.uniform(-140, 140)
+        exp = last_exp * (1 + 0.0015 * i) + _rng.uniform(-60, 60)
+        proj.append({"date": d, "revenue": round(rev, 2), "expense": round(exp, 2)})
+
     return {
         "summary": {
             "revenue_30d": round(revenue, 2),
@@ -498,9 +560,14 @@ async def get_finance(user: dict = Depends(current_user)):
             "profit_30d": round(profit, 2),
             "margin": round(profit / revenue * 100, 1) if revenue else 0,
             "forecast_60d": round(profit * 2.18, 2),
+            "forecast_90d": round(profit * 3.31, 2),
             "runway_months": 14.2,
         },
         "series": series,
+        "projection": proj,
+        "by_asset": by_asset,
+        "by_platform": by_platform,
+        "expense_categories": exp_categories,
         "transactions": [
             {"id": "t1", "label": "Ship It cohort #4 — Stripe payout", "amount": 8420.50, "kind": "in", "at": (now_utc() - timedelta(hours=6)).isoformat()},
             {"id": "t2", "label": "YouTube AdSense", "amount": 3120.00, "kind": "in", "at": (now_utc() - timedelta(days=1)).isoformat()},
@@ -522,6 +589,94 @@ async def create_goal(payload: GoalIn, user: dict = Depends(current_user)):
     goal = Goal(**payload.model_dump(), user_id=user["user_id"])
     await db.goals.insert_one(goal.model_dump())
     return goal
+
+
+class GoalUpdate(BaseModel):
+    current: Optional[float] = None
+    target: Optional[float] = None
+    title: Optional[str] = None
+    deadline: Optional[str] = None
+
+
+@api.patch("/goals/{goal_id}")
+async def update_goal(goal_id: str, payload: GoalUpdate, user: dict = Depends(current_user)):
+    update = {k: v for k, v in payload.model_dump().items() if v is not None}
+    if not update:
+        raise HTTPException(400, "No fields to update")
+    # Guardrails
+    if "title" in update:
+        if not update["title"].strip():
+            raise HTTPException(400, "Title cannot be empty")
+        if len(update["title"]) > 120:
+            raise HTTPException(413, "Title too long")
+    if "current" in update and update["current"] < 0:
+        raise HTTPException(400, "current cannot be negative")
+    if "target" in update and update["target"] <= 0:
+        raise HTTPException(400, "target must be positive")
+
+    r = await db.goals.update_one(
+        {"id": goal_id, "user_id": user["user_id"]},
+        {"$set": update},
+    )
+    if r.matched_count == 0:
+        raise HTTPException(404, "Goal not found")
+    goal = await db.goals.find_one({"id": goal_id, "user_id": user["user_id"]}, PROJECTION)
+    return goal
+
+
+@api.delete("/goals/{goal_id}")
+async def delete_goal(goal_id: str, user: dict = Depends(current_user)):
+    r = await db.goals.delete_one({"id": goal_id, "user_id": user["user_id"]})
+    if r.deleted_count == 0:
+        raise HTTPException(404, "Goal not found")
+    return {"ok": True}
+
+
+# --- Per-asset detail --------------------------------------------------
+@api.get("/assets/{asset_id}")
+async def get_asset_detail(asset_id: str, user: dict = Depends(current_user)):
+    """Rich single-asset detail: base asset + platform-scoped content + AI recs."""
+    asset = await db.assets.find_one(
+        {"id": asset_id, "user_id": user["user_id"]}, PROJECTION,
+    )
+    if not asset:
+        raise HTTPException(404, "Asset not found")
+
+    # Recent content for this platform
+    content = await db.content.find(
+        {"user_id": user["user_id"], "platform": asset.get("platform")}, PROJECTION,
+    ).sort("published_at", -1).to_list(20)
+
+    # AI recommendations scoped by platform mention (heuristic — matches category)
+    all_recs = await db.recommendations.find({"user_id": user["user_id"]}, PROJECTION).to_list(50)
+    platform = (asset.get("platform") or "").lower()
+    scoped_recs = [
+        r for r in all_recs
+        if platform in (r.get("title", "").lower() + " " + r.get("summary", "").lower())
+    ][:4]
+
+    # Peer benchmarks for this asset (synthetic — same rank across all assets)
+    followers = asset.get("followers") or 0
+    revenue = asset.get("revenue_mtd") or 0
+    return {
+        "asset": asset,
+        "content": content,
+        "recommendations": scoped_recs,
+        "benchmarks": {
+            "top_1pct_followers": int(followers * 3.2) if followers else 0,
+            "top_1pct_revenue": round(revenue * 4.6, 2) if revenue else 0,
+            "median_engagement": 4.8,
+            "your_engagement": round(min(9.6, 4.2 + (asset.get("ai_score", 70) - 60) / 6.0), 2),
+        },
+        "kpis": [
+            {"label": "AI Score", "value": asset.get("ai_score", 70), "unit": "/100"},
+            {"label": "Revenue MTD", "value": round(revenue, 0), "unit": "$"},
+            {"label": "Profit margin",
+             "value": round((asset.get("profit_mtd", 0) / revenue * 100) if revenue else 0, 0),
+             "unit": "%"},
+            {"label": "Audience", "value": followers, "unit": "reach"},
+        ],
+    }
 
 
 @api.get("/recommendations")
@@ -725,13 +880,3 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.on_event("startup")
-async def on_startup():
-    await ensure_indexes(db)
-
-
-@app.on_event("shutdown")
-async def on_shutdown():
-    client.close()

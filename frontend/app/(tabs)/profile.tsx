@@ -96,8 +96,24 @@ export default function Profile() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Active goals</Text>
-          {goals.map(g => <GoalCard key={g.id} goal={g} />)}
+          <View style={styles.sectionHeadRow}>
+            <Text style={styles.sectionTitle}>Active goals</Text>
+            <Pressable onPress={() => router.push('/goals')} testID="manage-goals">
+              <Text style={styles.sectionLink}>
+                Manage <Ionicons name="chevron-forward" size={11} color={colors.brand} />
+              </Text>
+            </Pressable>
+          </View>
+          {goals.slice(0, 3).map(g => <GoalCard key={g.id} goal={g} />)}
+          {goals.length > 3 && (
+            <Pressable
+              onPress={() => router.push('/goals')}
+              style={styles.moreBtn}
+              testID="see-all-goals"
+            >
+              <Text style={styles.moreBtnText}>+{goals.length - 3} more goals</Text>
+            </Pressable>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -248,6 +264,14 @@ const styles = StyleSheet.create({
   },
   connSummary: { color: colors.onSurface, fontSize: 14, fontWeight: '600' },
   connSummarySub: { color: colors.onSurfaceTertiary, fontSize: 11, marginTop: 2 },
+
+  moreBtn: {
+    marginTop: spacing.xs, paddingVertical: 10, borderRadius: radius.sm,
+    alignItems: 'center',
+    backgroundColor: colors.surfaceTertiary,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border,
+  },
+  moreBtnText: { color: colors.brand, fontSize: 12, fontWeight: '600' },
 
   card: {
     backgroundColor: colors.surfaceSecondary, borderRadius: radius.md, padding: spacing.lg,
