@@ -9,6 +9,7 @@ import { Platform } from 'react-native';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import * as SecureStore from 'expo-secure-store';
+import { startAnalytics, stopAnalytics, track } from '@/src/services/analytics';
 
 const BASE = process.env.EXPO_PUBLIC_BACKEND_URL;
 const TOKEN_KEY = 'creatoros_session_token';
@@ -71,6 +72,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await tokenSet(result.token);
     setToken(result.token);
     setUser(result.user);
+    // Fire signup/session start event (fire-and-forget)
+    await startAnalytics();
+    track('signup_completed', { via: 'google' });
     return true;
   }, []);
 
@@ -107,6 +111,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (r.ok) {
         const data = await r.json();
         if (alive) { setUser(data.user); setToken(stored); }
+        // Boot analytics for returning session
+        await startAnalytics();
       } else {
         await tokenClear();
       }
@@ -145,9 +151,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [completeAuth]);
 
   const signOut = useCallback(async () => {
+    track('signout');
     if (token) {
       try { await fetch(`${BASE}/api/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }); } catch {}
     }
+    await stopAnalytics();
     await tokenClear();
     setToken(null);
     setUser(null);

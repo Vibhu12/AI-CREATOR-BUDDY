@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radius, fmtCompact } from '@/src/theme/tokens';
 import { api } from '@/src/services/api';
+import { track } from '@/src/services/analytics';
 
 type Goal = {
   id: string;
@@ -311,6 +312,12 @@ function GoalFormModal({
           current: c,
           deadline: deadline || undefined,
         });
+        const wasComplete = goal.current >= goal.target;
+        const nowComplete = c >= t;
+        track('goal_updated', { kind: goal.kind, delta_pct: Math.round(((c - goal.current) / t) * 100) });
+        if (!wasComplete && nowComplete) {
+          track('goal_completed', { kind: goal.kind });
+        }
       } else {
         await api.createGoal({
           title: title.trim(),
@@ -319,6 +326,7 @@ function GoalFormModal({
           current: c,
           deadline: deadline || undefined,
         });
+        track('goal_created', { kind, has_deadline: !!deadline });
       }
       onSaved();
     } catch {

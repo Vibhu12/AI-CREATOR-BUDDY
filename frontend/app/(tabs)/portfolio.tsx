@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Svg, { Polyline } from 'react-native-svg';
 import { colors, spacing, radius, fmtCurrency, fmtCompact, platformMeta } from '@/src/theme/tokens';
 import { api } from '@/src/services/api';
+import { track } from '@/src/services/analytics';
 import { AddAssetModal } from '@/src/components/AddAssetModal';
 
 function Sparkline({ data, color }: { data: number[]; color: string }) {
@@ -109,7 +110,10 @@ export default function Portfolio() {
           <AssetRow
             key={a.id}
             asset={a}
-            onPress={() => router.push(`/asset/${a.id}`)}
+            onPress={() => {
+              track('asset_detail_viewed', { asset_id: a.id, platform: a.platform, ai_score: a.ai_score });
+              router.push(`/asset/${a.id}`);
+            }}
           />
         ))}
       </ScrollView>

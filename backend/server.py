@@ -45,6 +45,7 @@ load_dotenv(ROOT_DIR / ".env")
 from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
 
 from auth import make_auth_router, ensure_indexes
+from analytics import make_analytics_router
 from billing import make_billing_router
 from competitors import make_competitors_router
 from integrations import make_integrations_router, YOUTUBE_API_KEY
@@ -867,6 +868,7 @@ async def chat_reset(session_id: str, user: dict = Depends(current_user)):
 # Sub-routers
 # ---------------------------------------------------------------------------
 api.include_router(auth_router)
+api.include_router(make_analytics_router(db, current_user))
 api.include_router(make_integrations_router(db, current_user))
 api.include_router(make_competitors_router())
 api.include_router(make_strategy_router(db, EMERGENT_LLM_KEY, current_user))

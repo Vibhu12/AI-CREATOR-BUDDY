@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import Svg, { Circle, Defs, LinearGradient as SvgGrad, Stop } from 'react-native-svg';
 import { colors, spacing, radius, fmtCurrency, fmtCompact, fmtPercent } from '@/src/theme/tokens';
 import { api } from '@/src/services/api';
+import { track } from '@/src/services/analytics';
 import { NotificationsModal } from '@/src/components/NotificationsModal';
 
 type DashboardData = any;
@@ -116,7 +117,19 @@ export default function Dashboard() {
   }, []);
 
   const load = useCallback(async () => {
-    try { setData(await api.dashboard()); } catch (e) { console.warn(e); }
+    const t0 = Date.now();
+    try {
+      const d = await api.dashboard();
+      setData(d);
+      track('dashboard_loaded', {
+        ms: Date.now() - t0,
+        score: d?.hero?.score,
+        rec_count: d?.recommendations?.length ?? 0,
+      });
+    } catch (e) {
+      console.warn(e);
+      track('dashboard_loaded', { ms: Date.now() - t0, error: true });
+    }
   }, []);
 
   useEffect(() => { load(); loadNotifs(); }, [load, loadNotifs]);

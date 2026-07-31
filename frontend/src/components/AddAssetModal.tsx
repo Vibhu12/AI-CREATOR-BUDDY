@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radius, platformMeta } from '@/src/theme/tokens';
 import { api } from '@/src/services/api';
+import { track } from '@/src/services/analytics';
 
 const PLATFORMS = ['youtube', 'instagram', 'tiktok', 'course', 'newsletter', 'podcast', 'saas', 'affiliate', 'digital'];
 
@@ -84,6 +85,7 @@ export function AddAssetModal({
         ai_score: 70,
         trend: [65, 67, 68, 70, 71, 72, 70],
       });
+      track('asset_added', { platform, has_revenue: rev > 0, has_followers: !!followers });
       reset();
       onCreated();
       onClose();

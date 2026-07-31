@@ -10,6 +10,7 @@ import * as Linking from 'expo-linking';
 import { colors, spacing, radius } from '@/src/theme/tokens';
 import { api } from '@/src/services/api';
 import { useAuth } from '@/src/auth/AuthContext';
+import { track } from '@/src/services/analytics';
 
 type CheckoutPhase = 'idle' | 'creating' | 'method' | 'processing' | 'success' | 'error';
 
@@ -49,11 +50,14 @@ export default function Pricing() {
     setProvider('stripe');
     setErrorMsg(null);
     setPhase('method');
+    track('checkout_started', { tier: tier.id, price: tier.price_monthly });
   };
 
   const runStripeCheckout = async () => {
     // Existing mock Stripe flow — unchanged
     setPhase('creating');
+    track('checkout_method_selected', { tier: checkoutTier.id, provider: 'stripe' });
+    const t0 = Date.now();
     try {
       const s = await api.billingCheckout(checkoutTier.id, 'stripe');
       setSession(s);
@@ -63,16 +67,20 @@ export default function Pricing() {
       await refreshUser();
       setCurrent(res.tier);
       setPhase('success');
+      track('checkout_completed', { tier: res.tier, provider: 'stripe', real: false, ms: Date.now() - t0 });
       setTimeout(() => { setPhase('idle'); setCheckoutTier(null); setSession(null); }, 1600);
     } catch (e: any) {
       setErrorMsg(e?.message ?? 'Checkout failed');
       setPhase('error');
+      track('checkout_failed', { tier: checkoutTier.id, provider: 'stripe', reason: 'exception' });
     }
   };
 
   const runPayPalCheckout = async () => {
     // Real PayPal flow: create order → open approval URL → capture on return
     setPhase('creating');
+    track('checkout_method_selected', { tier: checkoutTier.id, provider: 'paypal', live: paypalLive });
+    const t0 = Date.now();
     try {
       const returnUrl = Linking.createURL('paypal/return');
       const cancelUrl = Linking.createURL('paypal/cancel');
@@ -86,6 +94,7 @@ export default function Pricing() {
         if (result.type !== 'success' || !result.url) {
           setErrorMsg('Payment was cancelled or dismissed.');
           setPhase('error');
+          track('checkout_cancelled', { tier: checkoutTier.id, provider: 'paypal' });
           return;
         }
         // Extract order id — PayPal appends ?token=<order_id>&PayerID=...
@@ -95,6 +104,7 @@ export default function Pricing() {
         await refreshUser();
         setCurrent(capture.tier);
         setPhase('success');
+        track('checkout_completed', { tier: capture.tier, provider: 'paypal', real: true, ms: Date.now() - t0 });
         setTimeout(() => { setPhase('idle'); setCheckoutTier(null); setSession(null); }, 1600);
       } else {
         // Fallback: mocked PayPal path (no keys) — simulate + capture
@@ -104,11 +114,13 @@ export default function Pricing() {
         await refreshUser();
         setCurrent(capture.tier);
         setPhase('success');
+        track('checkout_completed', { tier: capture.tier, provider: 'paypal', real: false, ms: Date.now() - t0 });
         setTimeout(() => { setPhase('idle'); setCheckoutTier(null); setSession(null); }, 1600);
       }
     } catch (e: any) {
       setErrorMsg(e?.message ?? 'PayPal checkout failed');
       setPhase('error');
+      track('checkout_failed', { tier: checkoutTier.id, provider: 'paypal', reason: 'exception' });
     }
   };
 

@@ -156,5 +156,10 @@ async def ensure_indexes(db):
         await db.chat_messages.create_index([("user_id", 1), ("session_id", 1), ("at", 1)])
         await db.checkout_sessions.create_index([("user_id", 1), ("order_id", 1)])
         await db.connections.create_index([("user_id", 1), ("provider", 1)], unique=True)
+        # Analytics
+        await db.analytics_events.create_index([("user_id", 1), ("at", -1)])
+        await db.analytics_events.create_index([("event", 1), ("at", -1)])
+        # Optional TTL — auto-purge events older than 90 days
+        await db.analytics_events.create_index("at", expireAfterSeconds=90 * 24 * 3600)
     except Exception:
         pass

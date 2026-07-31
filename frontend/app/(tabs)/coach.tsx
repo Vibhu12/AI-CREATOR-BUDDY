@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radius } from '@/src/theme/tokens';
 import { api } from '@/src/services/api';
+import { track } from '@/src/services/analytics';
 
 const SESSION_ID = 'maya-default-session';
 
@@ -47,12 +48,28 @@ export default function Coach() {
     setStreaming(true);
     scrollToEnd();
 
+    track('ai_chat_message_sent', { len: text.length });
+    const t0 = Date.now();
+    let firstToken = 0;
+
     try {
       const resp = await fetch(api.chatUrl(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
         body: JSON.stringify({ session_id: SESSION_ID, message: text }),
       });
+
+      // Backend can return non-200 (402 quota / 413 too long / 429 burst)
+      if (!resp.ok) {
+        const msg = resp.status === 402 ? 'Free tier limit — upgrade for unlimited AI coach.'
+                  : resp.status === 413 ? 'Message too long. Please shorten.'
+                  : resp.status === 429 ? 'Slow down — try again in a moment.'
+                  : 'AI service unavailable.';
+        setMessages(prev => prev.map(m => m.id === aiMsg.id ? { ...m, text: `⚠ ${msg}` } : m));
+        track('ai_chat_stream_error', { code: resp.status });
+        if (resp.status === 402) track('quota_hit', { kind: 'chat' });
+        return;
+      }
 
       if (!resp.body) {
         // No streaming support — fall back to plain read
@@ -80,19 +97,26 @@ export default function Coach() {
             try {
               const evt = JSON.parse(trimmed.slice(5).trim());
               if (evt.delta) {
+                if (!firstToken) {
+                  firstToken = Date.now();
+                  track('ai_chat_stream_started', { ttft_ms: firstToken - t0 });
+                }
                 acc += evt.delta;
                 setMessages(prev => prev.map(m => m.id === aiMsg.id ? { ...m, text: acc } : m));
                 scrollToEnd();
               }
               if (evt.error) {
                 setMessages(prev => prev.map(m => m.id === aiMsg.id ? { ...m, text: `⚠ ${evt.error}` } : m));
+                track('ai_chat_stream_error', { code: 'stream_error' });
               }
             } catch {}
           }
         }
+        track('ai_chat_stream_completed', { total_ms: Date.now() - t0, chars: acc.length });
       }
     } catch {
       setMessages(prev => prev.map(m => m.id === aiMsg.id ? { ...m, text: '⚠ Network error. Try again.' } : m));
+      track('ai_chat_stream_error', { code: 'network' });
     } finally {
       setStreaming(false);
       scrollToEnd();

@@ -122,6 +122,14 @@ export const api = {
     body: JSON.stringify({ order_id }),
   }).then(json),
 
+  // Analytics
+  trackEvents: (events: any[]) => authFetch(`/api/analytics/events`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ events }),
+  }).then(json),
+  analyticsSummary: (days = 30) => authFetch(`/api/analytics/summary?days=${days}`).then(json),
+
   // Auth
   me: () => authFetch(`/api/auth/me`).then(json),
 

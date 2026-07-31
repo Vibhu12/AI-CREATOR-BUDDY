@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radius } from '@/src/theme/tokens';
 import { api } from '@/src/services/api';
 import { useAuth } from '@/src/auth/AuthContext';
+import { track } from '@/src/services/analytics';
 
 const STEPS = ['welcome', 'youtube', 'stripe', 'done'] as const;
 type Step = typeof STEPS[number];
@@ -225,13 +226,16 @@ export default function Onboarding() {
             <Pressable
               onPress={() => {
                 if (step === 'stripe') {
+                  track('onboarding_step_completed', { step });
                   setStep('done');
                   return;
                 }
                 if (step === 'done') {
+                  track('onboarding_step_completed', { step });
                   finish();
                   return;
                 }
+                track('onboarding_step_completed', { step });
                 const next = STEPS[Math.min(STEPS.length - 1, stepIdx + 1)];
                 setStep(next);
               }}

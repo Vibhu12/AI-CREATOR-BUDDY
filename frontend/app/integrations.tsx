@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radius, fmtCompact, fmtCurrency } from '@/src/theme/tokens';
 import { api } from '@/src/services/api';
+import { track } from '@/src/services/analytics';
 
 type Provider = {
   id: 'youtube' | 'instagram' | 'stripe' | 'paypal';
@@ -271,17 +272,20 @@ function ConnectModal({
     }
     setError(null);
     setPhase('redirect');
+    track('connect_provider_attempted', { provider: provider.id });
     await new Promise(r => setTimeout(r, 500));
     setPhase('authorizing');
     try {
       const r = await api.connectProvider(provider.id, trimmed);
       setResult(r.connection);
       setPhase('success');
+      track('connect_provider_succeeded', { provider: provider.id, mocked: true });
       await new Promise(r => setTimeout(r, 900));
       onConnected();
     } catch (e: any) {
       setError(e?.message ?? 'Connection failed');
       setPhase('input');
+      track('connect_provider_failed', { provider: provider.id, reason: 'exception' });
     }
   };
 

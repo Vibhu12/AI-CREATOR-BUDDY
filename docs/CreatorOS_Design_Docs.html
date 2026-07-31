@@ -1,0 +1,2919 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CreatorOS — Complete Engineering Design Documentation</title>
+<style>
+:root {
+  --gold: #C9941D;
+  --gold-soft: rgba(201,148,29,0.08);
+  --ink: #1a1a1a;
+  --mute: #666;
+  --border: #e5e5e5;
+  --code-bg: #f6f6f6;
+  --code-fg: #8E2238;
+  --header-bg: #1A1A1A;
+  --row-alt: #fafafa;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #fff; color: var(--ink); }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.65;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 48px 56px 96px;
+}
+@media (max-width: 800px) { body { padding: 24px 20px 64px; font-size: 14px; } }
+
+/* Cover */
+.cover {
+  text-align: center;
+  padding: 96px 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+.cover h1 { font-size: 56px; margin: 0; color: var(--gold); letter-spacing: -2px; font-weight: 800; }
+.cover .subtitle { font-size: 22px; color: var(--ink); margin-top: 10px; }
+.cover .kicker { font-size: 13px; color: var(--mute); margin-top: 8px; letter-spacing: 1.5px; text-transform: uppercase; }
+.cover .meta { font-size: 12px; color: var(--mute); margin-top: 32px; }
+
+.part-title {
+  text-align: center;
+  padding: 64px 0 16px;
+  border-top: 1px solid var(--border);
+  margin-top: 64px;
+}
+.part-title h1 {
+  font-size: 32px;
+  color: var(--gold);
+  margin: 0;
+}
+
+/* Content */
+h1 { font-size: 28px; color: var(--gold); border-bottom: 2px solid var(--gold); padding-bottom: 6px; margin-top: 40px; }
+h2 { font-size: 22px; margin-top: 34px; color: var(--ink); border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+h3 { font-size: 17px; margin-top: 24px; color: var(--ink); }
+h4 { font-size: 15px; margin-top: 18px; color: var(--ink); text-transform: uppercase; letter-spacing: 0.6px; }
+p  { margin: 10px 0; }
+strong { color: var(--ink); }
+
+/* Lists */
+ul, ol { padding-left: 24px; margin: 8px 0; }
+li { margin: 4px 0; }
+ul ul, ol ol, ul ol, ol ul { margin: 4px 0; }
+
+/* Inline code + code blocks */
+code {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.88em;
+  color: var(--code-fg);
+  background: var(--code-bg);
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+pre {
+  background: var(--code-bg);
+  border-radius: 6px;
+  padding: 12px 16px;
+  overflow-x: auto;
+  font-size: 12.5px;
+  border: 1px solid #e0e0e0;
+  line-height: 1.5;
+}
+pre code {
+  background: transparent;
+  padding: 0;
+  color: #333;
+  font-size: 12.5px;
+}
+
+/* Tables */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 14px 0;
+  font-size: 13px;
+  overflow-x: auto;
+  display: block;
+}
+@media (min-width: 900px) { table { display: table; } }
+thead { background: var(--header-bg); color: #fff; }
+th, td {
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  text-align: left;
+  vertical-align: top;
+}
+th { font-weight: 600; }
+tbody tr:nth-child(even) { background: var(--row-alt); }
+
+/* Horizontal rule */
+hr { border: 0; border-top: 1px solid var(--border); margin: 24px 0; }
+
+/* Blockquote */
+blockquote {
+  border-left: 3px solid var(--gold);
+  padding: 4px 14px;
+  margin: 12px 0;
+  color: var(--mute);
+  background: var(--gold-soft);
+  border-radius: 0 6px 6px 0;
+}
+
+/* Links */
+a { color: #0366d6; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Print */
+@media print {
+  body { padding: 0 24px; max-width: 100%; }
+  .cover { page-break-after: always; }
+  .part-title { page-break-before: always; }
+  h1, h2, h3, h4 { page-break-after: avoid; }
+  pre, table { page-break-inside: avoid; }
+  a { color: inherit; text-decoration: none; }
+}
+
+/* TOC */
+.toc { background: #fafafa; border: 1px solid var(--border); border-radius: 6px; padding: 16px 22px; margin: 24px 0; }
+.toc h2 { border: 0; margin: 0 0 8px; font-size: 16px; color: var(--gold); }
+.toc ol { margin: 8px 0 0; }
+
+/* Note */
+.doc-note {
+  background: var(--gold-soft);
+  border-left: 3px solid var(--gold);
+  padding: 12px 16px;
+  border-radius: 0 6px 6px 0;
+  margin: 20px 0;
+  font-size: 13px;
+  color: var(--ink);
+}
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>CreatorOS</h1>
+  <div class="subtitle">Complete Engineering Design Documentation</div>
+  <div class="kicker">HLD · LLD · User Journeys · Evaluation Metrics · A/B Framework</div>
+  <div class="meta">
+    Version 1.0 &nbsp;·&nbsp; June 2026 &nbsp;·&nbsp; Confidential<br>
+    Owner: Engineering
+  </div>
+</div>
+
+<div class="toc">
+  <h2>Table of Contents</h2>
+  <ol>
+    <li><a href="#part-1">Part I — High-Level Design</a></li>
+    <li><a href="#part-2">Part II — Low-Level Design</a></li>
+    <li><a href="#part-3">Part III — End-to-End User Journey</a></li>
+    <li><a href="#part-4">Part IV — Evaluation Metrics & A/B Testing</a></li>
+  </ol>
+</div>
+
+<div class="doc-note">
+  <strong>💡 Tip:</strong> To save this as a PDF, use your browser's <em>Print → Save as PDF</em> feature.
+  The layout is print-optimised.
+</div>
+
+<div class="part-title" id="part-1"><h1>Part I — High-Level Design</h1></div>
+<p>Version 1.0 · June 2026 · Owner: Engineering</p>
+<hr />
+<h2 id="1-product-system-overview">1. Product &amp; System Overview</h2>
+<p><strong>CreatorOS</strong> is a mobile-first business operating system for digital creators<br />
+and entrepreneurs. It replaces the collection of spreadsheets, Notion pages,<br />
+and Stripe dashboards a solo creator normally cobbles together with a single<br />
+opinionated app that:</p>
+<ul>
+<li>Ingests portfolio data (YouTube, Instagram, courses, newsletters, SaaS)</li>
+<li>Computes a unified financial P&amp;L and 90-day forecast</li>
+<li>Scores every asset with an AI health score</li>
+<li>Benchmarks the user against the "Top 1%" peer set</li>
+<li>Generates 30/60/90-day strategy plans via Claude Sonnet 4.5</li>
+<li>Runs an always-on AI Coach for advisory-grade Q&amp;A</li>
+<li>Handles subscription billing (Stripe + PayPal) with real payment rails</li>
+</ul>
+<p>The primary user is <em>"Maya"</em> — a 27-year-old creator earning $18k–$60k/mo<br />
+across 4–6 revenue streams who wants to feel like a CEO, not a bookkeeper.</p>
+<hr />
+<h2 id="2-architecture-at-a-glance">2. Architecture at a Glance</h2>
+<pre><code>                         ┌──────────────────────────┐
+                         │        CLIENTS           │
+                         │  iOS (Expo build)        │
+                         │  Android (Expo build)    │
+                         │  Web preview (Metro)     │
+                         └────────────┬─────────────┘
+                                      │  HTTPS
+                                      │  (Bearer session token)
+                                      ▼
+                    ┌────────────────────────────────────┐
+                    │   KUBERNETES INGRESS (Emergent)    │
+                    │   /            → :3000  (Expo)     │
+                    │   /api/*       → :8001  (FastAPI)  │
+                    └────────────────────┬───────────────┘
+                                         │
+       ┌────────────────────────┬────────┴─────────┬──────────────────────┐
+       ▼                        ▼                  ▼                      ▼
+┌─────────────┐        ┌────────────────┐  ┌──────────────┐   ┌───────────────────┐
+│ Expo Metro  │        │  FastAPI       │  │  MongoDB     │   │  External APIs    │
+│ (Node 18)   │        │  (Uvicorn)     │  │  (Motor      │   │  • Emergent LLM   │
+│ port 3000   │◄─call──│  port 8001     │──┤  async)      │   │  • Emergent Auth  │
+│ RN Web +    │        │  • lifespan()  │  │              │   │  • PayPal REST v2 │
+│ Expo Router │        │  • CORS *      │  │  Collections:│   │  • Stripe REST    │
+└─────────────┘        │  • JWT Bearer  │  │   users      │   │  • YouTube v3     │
+                       │  • Streaming   │  │   sessions   │   │    (dormant)      │
+                       └────────────────┘  │   assets     │   │  • IG Graph       │
+                                           │   goals      │   │    (dormant)      │
+                                           │   content    │   └───────────────────┘
+                                           │   plans      │
+                                           │   chats      │
+                                           │   connections│
+                                           │   checkouts  │
+                                           └──────────────┘
+</code></pre>
+<p>Every URL that isn't <code>/api/*</code> is routed to Expo Metro on <strong>port 3000</strong>; every<br />
+URL with <code>/api/*</code> prefix is routed to Uvicorn on <strong>port 8001</strong>. Only these two<br />
+ports are exposed; all other services (Mongo, LLM provider) are reached from<br />
+inside the pod over private networking.</p>
+<hr />
+<h2 id="3-tech-stack">3. Tech Stack</h2>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Choice</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mobile UI</td>
+<td>React Native + Expo SDK (Expo Router)</td>
+<td>One codebase → iOS, Android, Web preview</td>
+</tr>
+<tr>
+<td>Navigation</td>
+<td>Expo Router (file-based)</td>
+<td>Type-safe deep links, native transitions</td>
+</tr>
+<tr>
+<td>State</td>
+<td>React Context (Auth, Onboarding)</td>
+<td>Minimal — no Redux needed at this scale</td>
+</tr>
+<tr>
+<td>Charts</td>
+<td>react-native-svg (hand-rolled)</td>
+<td>Full control, no chart-lib bloat</td>
+</tr>
+<tr>
+<td>HTTP</td>
+<td>Native <code>fetch</code> wrapped in <code>api.ts</code></td>
+<td>Bearer auto-injection, JSON helpers</td>
+</tr>
+<tr>
+<td>Storage</td>
+<td><code>expo-secure-store</code> + <code>AsyncStorage</code></td>
+<td>Session token in SecureStore, prefs in AS</td>
+</tr>
+<tr>
+<td>Auth</td>
+<td>Emergent Google Auth (platform)</td>
+<td>Zero-config OAuth for MVP</td>
+</tr>
+<tr>
+<td>Backend</td>
+<td>FastAPI 0.116 + <code>lifespan</code></td>
+<td>Native async, streaming, type-safe schemas</td>
+</tr>
+<tr>
+<td>DB driver</td>
+<td>Motor (Mongo async)</td>
+<td>Non-blocking under Uvicorn's loop</td>
+</tr>
+<tr>
+<td>Payments</td>
+<td>Stripe REST + PayPal Orders v2 REST</td>
+<td>No deprecated SDKs — pure <code>httpx</code></td>
+</tr>
+<tr>
+<td>LLM</td>
+<td>Claude Sonnet 4.5 via <code>emergentintegrations</code></td>
+<td>Streaming SSE, multi-turn context</td>
+</tr>
+<tr>
+<td>Rate limit</td>
+<td>In-process sliding window (<code>quotas.py</code>)</td>
+<td>Zero-dep for single-worker Uvicorn</td>
+</tr>
+<tr>
+<td>Env / secrets</td>
+<td><code>python-dotenv</code> from <code>backend/.env</code></td>
+<td>K8s-friendly; secrets never in git</td>
+</tr>
+</tbody>
+</table>
+<p>Package-manager: <strong>yarn</strong> (frontend), <strong>pip</strong> with <code>requirements.txt</code> (backend).</p>
+<hr />
+<h2 id="4-component-overview">4. Component Overview</h2>
+<h3 id="41-frontend-components-react-native">4.1 Frontend components (React Native)</h3>
+<table>
+<thead>
+<tr>
+<th>Route / File</th>
+<th>Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>app/_layout.tsx</code></td>
+<td>Root layout</td>
+<td>Font loading, <code>SafeAreaProvider</code>, <code>GestureHandlerRootView</code>, LogBox</td>
+</tr>
+<tr>
+<td><code>app/login.tsx</code></td>
+<td>Screen</td>
+<td>Landing / Google OAuth trigger</td>
+</tr>
+<tr>
+<td><code>app/onboarding.tsx</code></td>
+<td>Screen (3-step)</td>
+<td>Handle capture (YouTube, IG), goal, tier</td>
+</tr>
+<tr>
+<td><code>app/(tabs)/_layout.tsx</code></td>
+<td>Tab nav</td>
+<td>5 tabs: Dashboard, Portfolio, Coach, Finance, Profile</td>
+</tr>
+<tr>
+<td><code>app/(tabs)/index.tsx</code></td>
+<td>Dashboard</td>
+<td>Revenue, profit, health score, radar, top recs</td>
+</tr>
+<tr>
+<td><code>app/(tabs)/portfolio.tsx</code></td>
+<td>Portfolio list</td>
+<td>Asset cards with sparklines · taps → <code>/asset/[id]</code></td>
+</tr>
+<tr>
+<td><code>app/(tabs)/coach.tsx</code></td>
+<td>AI Coach</td>
+<td>Streaming SSE chat with Claude Sonnet 4.5</td>
+</tr>
+<tr>
+<td><code>app/(tabs)/finance.tsx</code></td>
+<td>Finance</td>
+<td>Chart, KPIs, revenue-mix, expense breakdown, 90d forecast</td>
+</tr>
+<tr>
+<td><code>app/(tabs)/profile.tsx</code></td>
+<td>Profile</td>
+<td>User info, tier, connections summary, goals summary</td>
+</tr>
+<tr>
+<td><code>app/integrations.tsx</code></td>
+<td>Screen</td>
+<td>Connections Hub — 4 provider cards + connect flow</td>
+</tr>
+<tr>
+<td><code>app/asset/[id].tsx</code></td>
+<td>Dynamic screen</td>
+<td>Per-asset detail (KPIs, benchmarks, recs, content)</td>
+</tr>
+<tr>
+<td><code>app/goals.tsx</code></td>
+<td>Screen</td>
+<td>Goal CRUD with progress bars</td>
+</tr>
+<tr>
+<td><code>app/strategy.tsx</code></td>
+<td>Screen</td>
+<td>30/60/90-day plans with task checkboxes</td>
+</tr>
+<tr>
+<td><code>app/competitors.tsx</code></td>
+<td>Screen</td>
+<td>Radar chart vs Top 1%</td>
+</tr>
+<tr>
+<td><code>app/pricing.tsx</code></td>
+<td>Screen</td>
+<td>Tier cards + Stripe/PayPal checkout modal</td>
+</tr>
+<tr>
+<td><code>src/components/AddAssetModal.tsx</code></td>
+<td>Component</td>
+<td>Portfolio "add" modal with per-field validation</td>
+</tr>
+<tr>
+<td><code>src/components/NotificationsModal.tsx</code></td>
+<td>Component</td>
+<td>In-app notifications list</td>
+</tr>
+<tr>
+<td><code>src/auth/AuthContext.tsx</code></td>
+<td>Provider</td>
+<td>Session token, current user, sign-in/out</td>
+</tr>
+<tr>
+<td><code>src/services/api.ts</code></td>
+<td>Service</td>
+<td>40+ typed API methods, Bearer injection</td>
+</tr>
+<tr>
+<td><code>src/theme/tokens.ts</code></td>
+<td>Design tokens</td>
+<td>Colors, spacing, radius, platformMeta, fmtCurrency</td>
+</tr>
+</tbody>
+</table>
+<h3 id="42-backend-components-fastapi">4.2 Backend components (FastAPI)</h3>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>server.py</code></td>
+<td>App bootstrap, CORS, lifespan, health &amp; dev endpoints, dashboards, portfolio, finance, goals, assets, recommendations, notifications, AI chat streaming, auto-seed</td>
+</tr>
+<tr>
+<td><code>auth.py</code></td>
+<td>Google session handling, <code>current_user</code> dep, indexes</td>
+</tr>
+<tr>
+<td><code>billing.py</code></td>
+<td>Tier catalog (Free/Pro/Studio), checkout sessions, PayPal Orders v2 endpoints, DEMO_MODE gate</td>
+</tr>
+<tr>
+<td><code>paypal_client.py</code></td>
+<td>PayPal REST v2 client: <code>create_order</code>, <code>capture_order</code>, OAuth token cache</td>
+</tr>
+<tr>
+<td><code>integrations.py</code></td>
+<td>Connections Hub — YouTube, IG, Stripe, PayPal per-user connection state + deterministic mock data</td>
+</tr>
+<tr>
+<td><code>competitors.py</code></td>
+<td>Top-1% peer benchmark radar data</td>
+</tr>
+<tr>
+<td><code>strategy.py</code></td>
+<td>30/60/90-day AI plan generator + task PATCH</td>
+</tr>
+<tr>
+<td><code>quotas.py</code></td>
+<td>Free-tier daily/weekly quotas + in-process rate limiting</td>
+</tr>
+</tbody>
+</table>
+<h3 id="43-data-model-mongodb-collections">4.3 Data model (MongoDB collections)</h3>
+<table>
+<thead>
+<tr>
+<th>Collection</th>
+<th>Key fields</th>
+<th>Indexes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>users</code></td>
+<td>user_id (UUID), email, name, tier, onboarding_complete, integrations</td>
+<td>email UQ, user_id UQ</td>
+</tr>
+<tr>
+<td><code>user_sessions</code></td>
+<td>session_token, user_id, expires_at</td>
+<td>token UQ, user_id, TTL</td>
+</tr>
+<tr>
+<td><code>assets</code></td>
+<td>id, user_id, name, platform, category, revenue_mtd, profit_mtd, followers, ai_score, trend[]</td>
+<td>user_id</td>
+</tr>
+<tr>
+<td><code>goals</code></td>
+<td>id, user_id, title, kind, target, current, deadline</td>
+<td>user_id</td>
+</tr>
+<tr>
+<td><code>content</code></td>
+<td>id, user_id, platform, title, views, likes, ctr, virality</td>
+<td>user_id</td>
+</tr>
+<tr>
+<td><code>recommendations</code></td>
+<td>id, user_id, title, summary, priority, expected_roi</td>
+<td>user_id</td>
+</tr>
+<tr>
+<td><code>strategy_plans</code></td>
+<td>id, user_id, title, duration_days, north_star, phases[], task_progress{}, progress_pct</td>
+<td>user_id</td>
+</tr>
+<tr>
+<td><code>chat_messages</code></td>
+<td>id, user_id, session_id, role, content, at</td>
+<td>user_id, (user_id+session_id+at)</td>
+</tr>
+<tr>
+<td><code>connections</code></td>
+<td>user_id, provider, account, summary, stats, connected_at</td>
+<td>user_id, (user_id+provider) UQ</td>
+</tr>
+<tr>
+<td><code>checkout_sessions</code></td>
+<td>session_id / order_id, user_id, tier, provider, amount, status</td>
+<td>user_id, (user_id+order_id)</td>
+</tr>
+<tr>
+<td><code>notifications</code></td>
+<td>id, user_id, title, body, kind, read, created_at</td>
+<td>user_id</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-cross-cutting-concerns">5. Cross-cutting Concerns</h2>
+<h3 id="51-authentication">5.1 Authentication</h3>
+<ul>
+<li>Emergent Google Auth issues a <strong>session token</strong> returned via deep link<br />
+  callback (<code>creatoros://auth/callback?session_id=...</code>) — parsed by<br />
+<code>AuthContext.parseSessionId</code>.</li>
+<li>Token stored in <strong>SecureStore</strong> (native) / <strong>AsyncStorage</strong> (web).</li>
+<li>Every backend call attaches <code>Authorization: Bearer &lt;token&gt;</code> via<br />
+<code>authFetch</code> in <code>api.ts</code>.</li>
+<li><code>current_user</code> dependency in FastAPI resolves the token in <code>user_sessions</code><br />
+  and hydrates the user document. <strong>TTL index</strong> auto-expires stale sessions.</li>
+<li>No refresh tokens; sessions valid for ~30 days then silent re-login.</li>
+</ul>
+<h3 id="52-authorization-multi-tenant-isolation">5.2 Authorization / Multi-tenant isolation</h3>
+<ul>
+<li>Every non-public endpoint requires <code>Depends(current_user)</code>.</li>
+<li>Every query filters by <code>user_id = user["user_id"]</code>. Cross-user reads/writes<br />
+  are structurally impossible — pytest suite <code>test_v13/14</code> explicitly enforces<br />
+  this with a cross-user 404 test on every collection.</li>
+</ul>
+<h3 id="53-streaming-ai-coach">5.3 Streaming (AI Coach)</h3>
+<ul>
+<li>FastAPI returns <code>StreamingResponse(media_type="text/event-stream")</code>.</li>
+<li><code>emergentintegrations.LlmChat.send_message_stream</code> yields <code>TextDelta</code> chunks<br />
+  → serialised as SSE <code>data: {"delta": "..."}\n\n</code>.</li>
+<li>Frontend uses <code>fetch</code> + <code>ReadableStream</code> reader in <code>coach.tsx</code> — no<br />
+  third-party SSE library needed.</li>
+</ul>
+<h3 id="54-payments-dual-provider-strategy">5.4 Payments — dual-provider strategy</h3>
+<pre><code>User picks tier in Pricing screen
+       │
+       ▼
+   Choose method
+   ┌─────────┴─────────┐
+   ▼                   ▼
+Stripe                PayPal
+(mock/live)         (mock/live)
+   │                   │
+   ▼                   ▼
+POST /checkout      POST /paypal/create-order
+   │                   │
+   │                   ▼
+   │            approval_url? ── yes ──► WebBrowser.openAuthSessionAsync
+   │                   │                            │
+   ▼                   ▼                            ▼
+POST /checkout/    POST /paypal/capture   ◄────  callback URL parsed
+   confirm             │
+   │                   ▼
+   ▼             flip user.tier
+flip user.tier
+</code></pre>
+<ul>
+<li><strong>DEMO_MODE=true</strong>: mock capture flips tier without a real charge — great<br />
+  for demos/tests. Backend logs <code>WARNING</code> on every mock flip.</li>
+<li><strong>DEMO_MODE=false</strong>: <code>/checkout/confirm</code>, <code>/upgrade</code>, and mocked PayPal<br />
+  captures return <strong>402 Payment Required</strong>. Only a real Stripe webhook or a<br />
+  real PayPal capture (with configured keys) can flip a tier — makes<br />
+  self-service upgrade impossible.</li>
+</ul>
+<h3 id="55-quotas-rate-limiting-quotaspy">5.5 Quotas &amp; Rate limiting (<code>quotas.py</code>)</h3>
+<ul>
+<li>Free tier: <strong>10</strong> AI chat msgs / day, <strong>1</strong> strategy plan / week.</li>
+<li>Message length hard cap: <strong>4000 chars</strong> → 413.</li>
+<li>Sliding-window burst caps (per user_id, per process):</li>
+<li>chat: 30 requests / 60s</li>
+<li>strategy: 5 / hour</li>
+<li>PayPal order create: 10 / hour</li>
+<li>Pro / Studio bypass tier quotas but still hit burst caps.</li>
+<li>Storage: <code>collections.deque</code> in-process. Swap for Redis when running &gt;1<br />
+  worker.</li>
+</ul>
+<h3 id="56-deterministic-mocks">5.6 Deterministic mocks</h3>
+<ul>
+<li><code>integrations.py</code> uses <code>hashlib.md5(handle)</code> → <code>random.Random(seed)</code> so the<br />
+  same handle always produces the same "stats". This means demo screenshots<br />
+  are stable across sessions, and QA can rely on fixed numbers.</li>
+</ul>
+<h3 id="57-auto-seed">5.7 Auto-seed</h3>
+<ul>
+<li>First hit to <code>/api/dashboard</code> or <code>/api/portfolio</code> triggers <code>_ensure_seeded</code><br />
+  which populates a rich Maya-style starter dataset (assets, goals, content,<br />
+  recommendations, notifications) scoped to that user. Preserves the sense<br />
+  that "the app is already alive" from first launch.</li>
+</ul>
+<h3 id="58-observability">5.8 Observability</h3>
+<ul>
+<li>Uvicorn access logs + supervisor stderr → <code>/var/log/supervisor/*.log</code>.</li>
+<li>Structured warnings on all security-sensitive events<br />
+  (<code>DEMO_MODE tier flip via ...</code>).</li>
+<li>PII (emails, tokens) is never logged — sanitized in error responses.</li>
+</ul>
+<hr />
+<h2 id="6-non-functional-requirements-guarantees">6. Non-Functional Requirements &amp; Guarantees</h2>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cold start (mobile)</td>
+<td>&lt; 2.5s on Expo Go, &lt; 1.2s on native build</td>
+</tr>
+<tr>
+<td>Dashboard fetch</td>
+<td>p95 &lt; 400ms (auto-seed adds ~600ms on first call)</td>
+</tr>
+<tr>
+<td>AI first-token latency</td>
+<td>&lt; 1.2s (streaming)</td>
+</tr>
+<tr>
+<td>Availability</td>
+<td>99.5% (single-region K8s deployment)</td>
+</tr>
+<tr>
+<td>Data durability</td>
+<td>MongoDB replicated at platform layer</td>
+</tr>
+<tr>
+<td>Security</td>
+<td>65/65 pytest for cross-user, quota, and auth pass</td>
+</tr>
+<tr>
+<td>Accessibility</td>
+<td>44pt hit targets, dynamic-type friendly, VoiceOver labels</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-environments-deployment">7. Environments &amp; Deployment</h2>
+<table>
+<thead>
+<tr>
+<th>Env</th>
+<th>DEMO_MODE</th>
+<th>Real payment keys</th>
+<th>Real integration keys</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>dev (pod)</td>
+<td>true</td>
+<td>absent</td>
+<td>absent</td>
+<td>Auto-seed + mock capture on</td>
+</tr>
+<tr>
+<td>staging</td>
+<td>true</td>
+<td>Stripe test key</td>
+<td>absent</td>
+<td>Real Stripe test charges</td>
+</tr>
+<tr>
+<td>production</td>
+<td>false</td>
+<td>Stripe live + PayPal live</td>
+<td>YouTube + IG keys</td>
+<td>Only real captures flip tiers</td>
+</tr>
+</tbody>
+</table>
+<p>Build &amp; release:<br />
+- <strong>Web preview</strong>: Metro dev server on <code>:3000</code> — instant hot reload.<br />
+- <strong>iOS TestFlight</strong>: Expo Application Services build → App Store Connect.<br />
+- <strong>Android APK/AAB</strong>: Same EAS pipeline → Google Play internal track.<br />
+- Backend: single Uvicorn worker managed by supervisord; scale by adding<br />
+  workers + replacing in-process rate-limit deque with Redis.</p>
+<hr />
+<h2 id="8-known-trade-offs">8. Known Trade-offs</h2>
+<ol>
+<li><strong>Mock data by default</strong>: chosen intentionally so the app is demoable<br />
+   without third-party credentials. Real APIs auto-activate when keys are<br />
+   supplied — no code change needed.</li>
+<li><strong>In-process rate limit</strong>: fine for single-worker MVP. Redis-based<br />
+   limiter needed above ~50 rps or with horizontal scaling.</li>
+<li><strong>No webhooks yet</strong>: PayPal capture is inline (blocking). For production<br />
+   we should add async webhook receivers to survive network glitches during<br />
+   the return trip.</li>
+<li><strong>Session tokens are opaque, non-refresh</strong>: acceptable for MVP; JWT + RT<br />
+   pair would allow shorter TTLs.</li>
+</ol>
+<hr />
+<h2 id="9-related-documents">9. Related Documents</h2>
+<ul>
+<li><code>02_LLD.md</code> — Low-level design (module-by-module, endpoint-by-endpoint)</li>
+<li><code>03_USER_JOURNEY.md</code> — End-to-end flows with edge-case matrix</li>
+<li><code>04_METRICS_AND_AB.md</code> — Evaluation metrics &amp; A/B test framework</li>
+<li><code>/app/memory/PRD.md</code> — Original product requirements</li>
+</ul>
+
+
+<div class="part-title" id="part-2"><h1>Part II — Low-Level Design</h1></div>
+<p>Version 1.0 · June 2026 · Companion to <code>01_HLD.md</code></p>
+<p>This document describes <strong>every backend module, every endpoint, every DB<br />
+collection field, every third-party call, and every frontend screen</strong> with<br />
+parameter-level detail. Read this before touching any part of the codebase.</p>
+<hr />
+<h2 id="table-of-contents">Table of Contents</h2>
+<ol>
+<li>Directory layout</li>
+<li>Backend modules</li>
+<li>REST API reference (grouped)</li>
+<li>MongoDB schema reference</li>
+<li>Frontend module reference</li>
+<li>Third-party integrations</li>
+<li>Security controls</li>
+<li>Testing surfaces</li>
+</ol>
+<hr />
+<h2 id="1-directory-layout">1. Directory Layout</h2>
+<pre><code>/app
+├── backend/
+│   ├── server.py          # FastAPI app + core endpoints (~825 lines)
+│   ├── auth.py            # Google session dep + indexes
+│   ├── billing.py         # Tiers, checkout, PayPal endpoints, DEMO_MODE
+│   ├── paypal_client.py   # PayPal REST v2 (httpx)
+│   ├── integrations.py    # Connections Hub — YT/IG/Stripe/PayPal
+│   ├── competitors.py     # Top-1% radar peer set
+│   ├── strategy.py        # AI-generated 30/60/90-day plans
+│   ├── quotas.py          # Quota + rate-limit enforcement
+│   ├── requirements.txt
+│   ├── .env               # DO NOT COMMIT
+│   └── tests/             # v10, v12, v13, v14 pytest suites
+│
+├── frontend/
+│   ├── app/               # Expo Router (file = route)
+│   │   ├── _layout.tsx    # Root providers
+│   │   ├── login.tsx
+│   │   ├── onboarding.tsx
+│   │   ├── integrations.tsx
+│   │   ├── goals.tsx
+│   │   ├── strategy.tsx
+│   │   ├── competitors.tsx
+│   │   ├── pricing.tsx
+│   │   ├── asset/[id].tsx
+│   │   └── (tabs)/        # Tab bar group
+│   │       ├── _layout.tsx
+│   │       ├── index.tsx  # Dashboard
+│   │       ├── portfolio.tsx
+│   │       ├── coach.tsx
+│   │       ├── finance.tsx
+│   │       └── profile.tsx
+│   ├── src/
+│   │   ├── auth/AuthContext.tsx
+│   │   ├── services/api.ts
+│   │   ├── theme/tokens.ts
+│   │   └── components/
+│   │       ├── AddAssetModal.tsx
+│   │       └── NotificationsModal.tsx
+│   ├── app.json
+│   ├── package.json
+│   └── .env
+│
+└── docs/                  # ← You are here
+</code></pre>
+<hr />
+<h2 id="2-backend-modules">2. Backend Modules</h2>
+<h3 id="21-serverpy">2.1 <code>server.py</code></h3>
+<p><strong>Bootstrap</strong></p>
+<pre><code class="language-python">@asynccontextmanager
+async def lifespan(app_: FastAPI):
+    await ensure_indexes(db)   # from auth.py
+    yield
+    client.close()             # Motor client teardown
+
+app = FastAPI(title=&quot;CreatorOS API&quot;, lifespan=lifespan)
+app.add_middleware(CORSMiddleware, allow_origins=[&quot;*&quot;], allow_credentials=True, ...)
+</code></pre>
+<p><strong>Sub-routers included</strong></p>
+<pre><code class="language-python">api.include_router(auth_router)
+api.include_router(make_integrations_router(db, current_user))
+api.include_router(make_competitors_router())
+api.include_router(make_strategy_router(db, current_user, EMERGENT_LLM_KEY))
+api.include_router(make_billing_router(db, current_user))
+app.include_router(api, prefix=&quot;/api&quot;)
+</code></pre>
+<p><strong>Key helpers</strong><br />
+- <code>_hash_seed(user_id: str) → int</code> — deterministic seed for per-user mocks<br />
+- <code>_ensure_seeded(uid: str)</code> — idempotent Maya-style dataset seeding<br />
+- <code>_finance_series(base_rev, base_exp, seed) → list[dict]</code> — 30-day P&amp;L<br />
+  synthesis with daily variance<br />
+- <code>PROJECTION = {"_id": 0}</code> — always strip Mongo <code>_id</code> from responses</p>
+<p><strong>Domain models (Pydantic)</strong></p>
+<pre><code class="language-python">class ChatRequest(BaseModel):
+    session_id: str
+    message: str
+
+class Asset(BaseModel):
+    id: str; user_id: str
+    name: str; platform: str; category: str
+    revenue_mtd: float; profit_mtd: float
+    followers: int; ai_score: int
+    trend: list[float]
+
+class Goal(BaseModel):
+    id: str; user_id: str
+    title: str; kind: Literal[&quot;revenue&quot;,&quot;followers&quot;,&quot;subscribers&quot;,&quot;launch&quot;,&quot;content&quot;]
+    target: float; current: float
+    deadline: Optional[str]
+
+class GoalUpdate(BaseModel):
+    current: Optional[float] = None
+    target: Optional[float] = None
+    title: Optional[str] = None
+    deadline: Optional[str] = None
+</code></pre>
+<h3 id="22-authpy">2.2 <code>auth.py</code></h3>
+<pre><code class="language-python">async def current_user(authorization: str = Header(...)) -&gt; dict:
+    token = authorization.removeprefix(&quot;Bearer &quot;).strip()
+    session = await db.user_sessions.find_one({&quot;session_token&quot;: token})
+    if not session or session[&quot;expires_at&quot;] &lt; now_utc():
+        raise HTTPException(401, &quot;Invalid session&quot;)
+    user = await db.users.find_one({&quot;user_id&quot;: session[&quot;user_id&quot;]})
+    return user
+
+async def ensure_indexes(db):
+    await db.users.create_index(&quot;email&quot;, unique=True)
+    await db.users.create_index(&quot;user_id&quot;, unique=True)
+    await db.user_sessions.create_index(&quot;session_token&quot;, unique=True)
+    await db.user_sessions.create_index(&quot;expires_at&quot;, expireAfterSeconds=0)  # TTL
+    for c in (&quot;assets&quot;,&quot;goals&quot;,&quot;content&quot;,&quot;recommendations&quot;,&quot;notifications&quot;,
+              &quot;strategy_plans&quot;,&quot;chat_messages&quot;,&quot;connections&quot;,&quot;checkout_sessions&quot;):
+        await db[c].create_index(&quot;user_id&quot;)
+    await db.chat_messages.create_index([(&quot;user_id&quot;,1),(&quot;session_id&quot;,1),(&quot;at&quot;,1)])
+    await db.connections.create_index([(&quot;user_id&quot;,1),(&quot;provider&quot;,1)], unique=True)
+</code></pre>
+<h3 id="23-billingpy">2.3 <code>billing.py</code></h3>
+<p><strong>TIERS constant</strong> (server-authoritative pricing):</p>
+<pre><code class="language-python">TIERS = {
+  &quot;free&quot;:   {price_monthly: 0,  limits: {chats_per_day: 10, plans_per_week: 1}, ...},
+  &quot;pro&quot;:    {price_monthly: 29, limits: {chats_per_day: None, plans_per_week: None}, popular: true},
+  &quot;studio&quot;: {price_monthly: 99, limits: {...}},
+}
+DEMO_MODE = os.environ[&quot;DEMO_MODE&quot;].lower() == &quot;true&quot;  # default true
+</code></pre>
+<p><strong>Key helpers</strong><br />
+- <code>_reject_mock_upgrade()</code> → <code>HTTPException(402, "Payment required...")</code><br />
+- <code>_is_safe_callback_url(url)</code> → bool. Accepts <code>https://</code> + <code>&lt;scheme&gt;://</code><br />
+  deep-links. Rejects <code>http://</code>, <code>javascript:</code>, <code>data:</code>, <code>file:</code>, <code>vbscript:</code><br />
+  and URLs &gt; 2000 chars.</p>
+<p><strong>Endpoints</strong> (see §3.4)</p>
+<h3 id="24-paypal_clientpy">2.4 <code>paypal_client.py</code></h3>
+<p>Constants: <code>PAYPAL_MODE</code> (sandbox|live), <code>_BASE</code> (auto-selected).</p>
+<p>Functions:</p>
+<pre><code class="language-python">def is_configured() -&gt; bool:
+    return bool(PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET)
+
+async def _get_access_token(client) -&gt; str:
+    # OAuth2 client_credentials; cached in _token_cache with expires_at
+
+async def create_order(*, amount, currency='USD', reference_id,
+                       description, return_url, cancel_url) -&gt; dict:
+    # POST /v2/checkout/orders with intent=CAPTURE, purchase_units,
+    # application_context (brand_name, PAY_NOW user_action, NO_SHIPPING).
+    # Returns {id, status, approval_url, raw}
+
+async def capture_order(order_id: str) -&gt; dict:
+    # POST /v2/checkout/orders/{id}/capture
+    # Idempotent via PayPal-Request-Id: cap_{order_id}
+
+async def get_order(order_id: str) -&gt; dict:
+    # GET /v2/checkout/orders/{id}
+</code></pre>
+<p>Token cache lives in module scope: <code>_token_cache = {"token": None, "expires_at": 0}</code>.</p>
+<h3 id="25-integrationspy">2.5 <code>integrations.py</code></h3>
+<p><code>PROVIDER_META</code> dict — 4 entries (youtube, instagram, stripe, paypal) with<br />
+<code>name</code>, <code>description</code>, <code>color</code>, <code>input_label</code>, <code>input_placeholder</code>, <code>input_prefix</code>.</p>
+<p>Deterministic mock generators:</p>
+<pre><code class="language-python">def _seed_from(text) -&gt; int:  # md5[:8] → int
+def _mock_youtube(handle) -&gt; dict:  # subs, views, videos, recent_videos[6], avg_rpm, avg_ctr, monthly_earnings
+def _mock_instagram(handle) -&gt; dict: # followers, engagement, recent_reels[6], monthly_reach
+</code></pre>
+<p>Real API fallback: if <code>YOUTUBE_API_KEY</code> is set and the HTTP call to<br />
+<code>googleapis.com/youtube/v3/channels?forHandle=...</code> returns 200, use real data;<br />
+else fall back to mock.</p>
+<h3 id="26-strategypy">2.6 <code>strategy.py</code></h3>
+<p><code>generate()</code> endpoint takes <code>StrategyRequest(horizon_days: Literal[30,60,90], focus: Optional[str], asset_context: Optional[list])</code>.</p>
+<p>Flow:<br />
+1. Call <code>enforce_strategy_plan(db, user)</code> → quota check.<br />
+2. Validate <code>focus &lt;= 500</code> chars.<br />
+3. Compose system prompt with tier-aware persona instructions.<br />
+4. Stream Claude Sonnet 4.5 via <code>LlmChat.send_message_stream</code>.<br />
+5. Parse the final JSON into a <code>StrategyPlan</code> doc, persist with <code>progress_pct=0</code>.</p>
+<p><code>PATCH /strategy/{plan_id}/task</code> updates <code>task_progress</code> map and recomputes<br />
+<code>progress_pct = done_tasks / total_tasks * 100</code>.</p>
+<h3 id="27-quotaspy">2.7 <code>quotas.py</code></h3>
+<p>Constants:</p>
+<pre><code class="language-python">MAX_CHAT_MESSAGE_CHARS = 4000
+FREE_TIER_LIMITS = {&quot;chats_per_day&quot;: 10, &quot;plans_per_week&quot;: 1}
+BURST_LIMITS = {
+  &quot;chat&quot;:          (30, 60),     # 30 / min
+  &quot;strategy&quot;:      (5, 3600),    # 5 / hour
+  &quot;paypal_order&quot;:  (10, 3600),   # 10 / hour
+}
+</code></pre>
+<p>Public functions:<br />
+- <code>check_burst(user_id, kind)</code> — raises 429 if window exceeded.<br />
+- <code>enforce_chat_message(db, user, message)</code> — 400 empty, 413 too long,<br />
+  burst check, then 402 if free-tier daily cap hit.<br />
+- <code>enforce_strategy_plan(db, user)</code> — burst check + 402 if weekly cap hit.<br />
+- <code>enforce_paypal_order(user)</code> — burst only (pricing is server-authoritative).</p>
+<p>Storage: <code>_windows: dict[kind → dict[user_id → deque[timestamps]]]</code>.</p>
+<hr />
+<h2 id="3-rest-api-reference">3. REST API Reference</h2>
+<p>Base URL: <code>&lt;host&gt;/api</code>. All non-public endpoints require<br />
+<code>Authorization: Bearer &lt;session_token&gt;</code>. All responses are JSON except AI<br />
+streaming which is <code>text/event-stream</code>.</p>
+<h3 id="31-health-auth">3.1 Health &amp; Auth</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Params</th>
+<th>Success</th>
+<th>Errors</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/</code></td>
+<td>—</td>
+<td><code>{name, ok}</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/auth/google/callback</code></td>
+<td><code>{code, redirect_uri}</code> (deep-link)</td>
+<td><code>{session_token, user}</code></td>
+<td>400, 401</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/auth/me</code></td>
+<td>Header only</td>
+<td>user doc</td>
+<td>401</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/auth/logout</code></td>
+<td>Header only</td>
+<td><code>{ok: true}</code></td>
+<td>401</td>
+</tr>
+</tbody>
+</table>
+<h3 id="32-dashboard-portfolio-finance-assets">3.2 Dashboard, Portfolio, Finance, Assets</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Params / Body</th>
+<th>Success shape</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/dashboard</code></td>
+<td>—</td>
+<td><code>{hero{...}, kpis[4], top_recs[3], radar{...}, health_score:int}</code></td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/portfolio</code></td>
+<td>—</td>
+<td><code>{assets: Asset[]}</code></td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/assets</code></td>
+<td><code>{name, platform, category, revenue_mtd, profit_mtd, followers, ai_score, trend[]}</code></td>
+<td>Asset</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/assets/{id}</code></td>
+<td>path id</td>
+<td><code>{asset, content[], recommendations[], benchmarks{...}, kpis[4]}</code> — 404 cross-user</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/finance</code></td>
+<td>—</td>
+<td><code>{summary{revenue_30d, expense_30d, profit_30d, margin, forecast_60d, forecast_90d, runway_months}, series[30], projection[90], by_asset[], by_platform[], expense_categories[5], transactions[]}</code></td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/goals</code></td>
+<td>—</td>
+<td><code>{items: Goal[]}</code></td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/goals</code></td>
+<td><code>{title, kind, target, current, deadline?}</code></td>
+<td>Goal</td>
+</tr>
+<tr>
+<td>PATCH</td>
+<td><code>/goals/{id}</code></td>
+<td><code>{title?, target?, current?, deadline?}</code> — at least one</td>
+<td>Updated Goal · 400 invalid · 413 title&gt;120 · 404 cross-user</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/goals/{id}</code></td>
+<td>—</td>
+<td><code>{ok: true}</code> · 404 cross-user</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/content</code></td>
+<td>—</td>
+<td><code>{items: ContentItem[]}</code></td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/recommendations</code></td>
+<td>—</td>
+<td><code>{items: Recommendation[]}</code> — sorted by priority desc</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/notifications</code></td>
+<td>—</td>
+<td><code>{items: Notification[]}</code></td>
+</tr>
+<tr>
+<td>PATCH</td>
+<td><code>/notifications/{id}</code></td>
+<td><code>{read: true}</code></td>
+<td>Notification</td>
+</tr>
+</tbody>
+</table>
+<h3 id="33-ai-coach-strategy">3.3 AI Coach &amp; Strategy</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Params / Body</th>
+<th>Success</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST</td>
+<td><code>/ai/chat</code></td>
+<td><code>{session_id: str, message: str}</code></td>
+<td>SSE stream <code>data: {"delta":"..."}\n\n</code> · 400 empty · 413 &gt;4000 chars · 402 free-tier cap · 429 burst</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/ai/chat/history</code></td>
+<td><code>?session_id=&lt;str&gt;</code></td>
+<td><code>{items: [{role, content, at}]}</code></td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/strategy/plans</code></td>
+<td><code>{horizon_days: 30|60|90, focus?: str, asset_context?}</code></td>
+<td>StrategyPlan · 400 invalid horizon · 413 focus&gt;500 · 402 free-tier cap · 429 burst · 500 no AI key</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/strategy/current</code></td>
+<td>—</td>
+<td><code>{plans: StrategyPlan[]}</code></td>
+</tr>
+<tr>
+<td>PATCH</td>
+<td><code>/strategy/{plan_id}/task</code></td>
+<td><code>{task_id, done: bool}</code></td>
+<td>Plan with updated <code>progress_pct</code> · 404</td>
+</tr>
+</tbody>
+</table>
+<h3 id="34-billing">3.4 Billing</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Body</th>
+<th>Success</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/billing/plans</code></td>
+<td>—</td>
+<td><code>{tiers: [FreeTier, ProTier, StudioTier]}</code></td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/billing/plan</code></td>
+<td>—</td>
+<td><code>{tier, ...tier_metadata}</code></td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/billing/checkout</code></td>
+<td><code>{tier: 'pro'|'studio', provider: 'stripe'|'paypal'}</code></td>
+<td>Session doc with <code>session_id</code>, <code>checkout_url</code>, <code>status:'pending'</code> — 400 free tier</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/billing/checkout/confirm</code></td>
+<td><code>{session_id}</code></td>
+<td><code>{ok, tier}</code> — <strong>402 in DEMO_MODE=false</strong></td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/billing/paypal/create-order</code></td>
+<td><code>{tier, return_url, cancel_url}</code></td>
+<td>Session with <code>order_id</code>, <code>approval_url</code> (or null in mock) — 400 invalid URL / tier</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/billing/paypal/capture</code></td>
+<td><code>{order_id}</code></td>
+<td><code>{ok, tier, provider:'paypal', mode?}</code> — <strong>402 mock in DEMO_MODE=false</strong> · 404 unknown</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/billing/paypal/status</code></td>
+<td>—</td>
+<td><code>{configured, mode}</code></td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/billing/upgrade</code></td>
+<td><code>{tier}</code></td>
+<td>DEMO_MODE only — else <strong>410 Gone</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="35-integrations-hub">3.5 Integrations Hub</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Body</th>
+<th>Success</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/integrations/connections</code></td>
+<td>—</td>
+<td><code>{connections: [Provider × 4]}</code></td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/integrations/{provider}/connect</code></td>
+<td><code>{account}</code></td>
+<td><code>{ok, provider, connection}</code> — 400 empty</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/integrations/{provider}/disconnect</code></td>
+<td>—</td>
+<td><code>{ok, provider}</code></td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/integrations/youtube/channel?handle=</code></td>
+<td>query optional</td>
+<td>Channel dict (real via <code>YOUTUBE_API_KEY</code> else deterministic mock)</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/integrations/instagram/profile?handle=</code></td>
+<td>query optional</td>
+<td>Profile dict</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/integrations/stripe/status</code></td>
+<td>—</td>
+<td><code>{connected, mode, available_balance, pending_balance, recent_charges}</code></td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/integrations/paypal/status</code></td>
+<td>—</td>
+<td><code>{connected, email, available_balance, mtd_processed, cross_border_pct, recent_transactions}</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="36-dev-only-demo_mode-guarded">3.6 Dev-only (DEMO_MODE guarded)</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Body</th>
+<th>Success</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST</td>
+<td><code>/dev/reseed</code></td>
+<td>—</td>
+<td><code>{ok:true, seeded:{...}}</code> — <strong>403</strong> in prod</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-mongodb-schema-reference">4. MongoDB Schema Reference</h2>
+<h3 id="users"><code>users</code></h3>
+<pre><code class="language-json">{
+  &quot;user_id&quot;: &quot;uuid&quot;,
+  &quot;email&quot;: &quot;maya@example.com&quot;,
+  &quot;name&quot;: &quot;Maya Nakamura&quot;,
+  &quot;picture&quot;: &quot;https://...&quot;,
+  &quot;onboarding_complete&quot;: true,
+  &quot;youtube_handle&quot;: &quot;mayabuilds&quot;,
+  &quot;instagram_handle&quot;: &quot;maya.builds&quot;,
+  &quot;tier&quot;: &quot;free&quot;,
+  &quot;tier_updated_at&quot;: &quot;2026-06-15T...&quot;,
+  &quot;integrations&quot;: {},
+  &quot;created_at&quot;: ISODate
+}
+</code></pre>
+<h3 id="assets"><code>assets</code></h3>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;asset_uuid&quot;,
+  &quot;user_id&quot;: &quot;uuid&quot;,
+  &quot;name&quot;: &quot;Ship It cohort&quot;,
+  &quot;platform&quot;: &quot;course&quot;,
+  &quot;category&quot;: &quot;Cohort-based course&quot;,
+  &quot;revenue_mtd&quot;: 24800,
+  &quot;profit_mtd&quot;: 18600,
+  &quot;followers&quot;: 4200,
+  &quot;ai_score&quot;: 88,
+  &quot;trend&quot;: [64, 66, 70, 74, 78, 82, 88]
+}
+</code></pre>
+<h3 id="goals"><code>goals</code></h3>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;goal_uuid&quot;,
+  &quot;user_id&quot;: &quot;uuid&quot;,
+  &quot;title&quot;: &quot;250k YouTube subs&quot;,
+  &quot;kind&quot;: &quot;subscribers&quot;,
+  &quot;target&quot;: 250000,
+  &quot;current&quot;: 148000,
+  &quot;deadline&quot;: &quot;2026-12-31&quot;
+}
+</code></pre>
+<h3 id="chat_messages"><code>chat_messages</code></h3>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;msg_uuid&quot;,
+  &quot;user_id&quot;: &quot;uuid&quot;,
+  &quot;session_id&quot;: &quot;coach-main&quot;,
+  &quot;role&quot;: &quot;user&quot; | &quot;assistant&quot;,
+  &quot;content&quot;: &quot;How do I price my next cohort?&quot;,
+  &quot;at&quot;: &quot;2026-06-15T...Z&quot;
+}
+</code></pre>
+<h3 id="strategy_plans"><code>strategy_plans</code></h3>
+<pre><code class="language-json">{
+  &quot;id&quot;: &quot;plan_uuid&quot;,
+  &quot;user_id&quot;: &quot;uuid&quot;,
+  &quot;title&quot;: &quot;60-day scale plan&quot;,
+  &quot;duration_days&quot;: 60,
+  &quot;north_star&quot;: &quot;$40k MRR by Aug&quot;,
+  &quot;phases&quot;: [
+    {&quot;id&quot;: &quot;p1&quot;, &quot;name&quot;: &quot;Foundation (days 1-14)&quot;, &quot;tasks&quot;: [
+      {&quot;id&quot;: &quot;t1&quot;, &quot;text&quot;: &quot;Ship pricing page A/B test&quot;}, ...
+    ]}, ...
+  ],
+  &quot;task_progress&quot;: { &quot;t1&quot;: true, &quot;t2&quot;: false, ... },
+  &quot;progress_pct&quot;: 42,
+  &quot;created_at&quot;: &quot;...&quot;
+}
+</code></pre>
+<h3 id="connections"><code>connections</code></h3>
+<pre><code class="language-json">{
+  &quot;user_id&quot;: &quot;uuid&quot;,
+  &quot;provider&quot;: &quot;youtube&quot;,
+  &quot;account&quot;: &quot;mayabuilds&quot;,
+  &quot;connected_at&quot;: &quot;...&quot;,
+  &quot;summary&quot;: {&quot;label&quot;: &quot;@mayabuilds&quot;, &quot;primary_metric&quot;: &quot;148,209 subs&quot;, &quot;secondary_metric&quot;: &quot;$4,120/mo est.&quot;},
+  &quot;stats&quot;: { /* full mock or live payload */ }
+}
+</code></pre>
+<h3 id="checkout_sessions"><code>checkout_sessions</code></h3>
+<pre><code class="language-json">{
+  &quot;session_id&quot;: &quot;cs_stripe_...&quot;,
+  &quot;order_id&quot;: &quot;cs_stripe_...&quot;,          // == session_id in mock; PayPal order id in real
+  &quot;user_id&quot;: &quot;uuid&quot;,
+  &quot;tier&quot;: &quot;pro&quot;,
+  &quot;provider&quot;: &quot;stripe&quot; | &quot;paypal&quot;,
+  &quot;amount&quot;: 29,
+  &quot;currency&quot;: &quot;usd&quot;,
+  &quot;status&quot;: &quot;pending&quot; | &quot;complete&quot;,
+  &quot;approval_url&quot;: null | &quot;https://...&quot;,
+  &quot;mocked&quot;: true | false,
+  &quot;created_at&quot;: &quot;...&quot;,
+  &quot;completed_at&quot;: &quot;...&quot;,
+  &quot;capture_id&quot;: &quot;...&quot;,                   // PayPal capture id when real
+  &quot;capture_payload&quot;: { ... }             // full PayPal response for audit
+}
+</code></pre>
+<hr />
+<h2 id="5-frontend-module-reference">5. Frontend Module Reference</h2>
+<h3 id="51-authcontexttsx">5.1 <code>AuthContext.tsx</code></h3>
+<pre><code class="language-typescript">type AuthState = {
+  user: User | null;
+  token: string | null;
+  loading: boolean;
+  signIn: () =&gt; Promise&lt;void&gt;;        // Opens WebBrowser with OAuth URL
+  signOut: () =&gt; Promise&lt;void&gt;;
+  refreshUser: () =&gt; Promise&lt;void&gt;;
+  parseSessionId: (url: string) =&gt; string | null;  // extracts from callback
+};
+
+// Token flow:
+//   signIn → openAuthSessionAsync → callback URL → parseSessionId
+//     → SecureStore.setItemAsync('session_token', token)
+//     → fetch /api/auth/me → setUser
+</code></pre>
+<h3 id="52-apits-40-methods">5.2 <code>api.ts</code> — 40+ methods</h3>
+<p>Every method wraps <code>authFetch()</code>:</p>
+<pre><code class="language-typescript">async function authFetch(path: string, init: RequestInit = {}): Promise&lt;Response&gt; {
+  const token = await getToken();
+  return fetch(`${BACKEND_URL}${path}`, {
+    ...init,
+    headers: {
+      ...(init.headers ?? {}),
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+  });
+}
+</code></pre>
+<p>Grouped exports: <code>dashboard</code>, <code>portfolio</code>, <code>createAsset</code>, <code>assetDetail</code>,<br />
+<code>goals</code> / <code>createGoal</code> / <code>updateGoal</code> / <code>deleteGoal</code>, <code>finance</code>, <code>content</code>,<br />
+<code>recommendations</code>, <code>notifications</code>, <code>notificationsMarkRead</code>, <code>aiChatStream</code><br />
+(returns ReadableStream), <code>chatHistory</code>, <code>strategyPlans</code>, <code>strategyCurrent</code>,<br />
+<code>toggleStrategyTask</code>, <code>competitors</code>, <code>billingPlans</code> / <code>billingPlan</code> /<br />
+<code>billingCheckout</code> / <code>billingConfirm</code>, <code>paypalConfig</code> / <code>paypalCreateOrder</code> /<br />
+<code>paypalCapture</code>, <code>connections</code> / <code>connectProvider</code> / <code>disconnectProvider</code>,<br />
+<code>youtubeChannel</code>, <code>instagramProfile</code>, <code>stripeStatus</code>, <code>paypalStatus</code>.</p>
+<h3 id="53-screen-state-models-representative">5.3 Screen state models (representative)</h3>
+<p><strong><code>goals.tsx</code></strong></p>
+<pre><code class="language-typescript">[goals, setGoals]         : Goal[]
+[loading, setLoading]     : boolean
+[refreshing, setRefreshing]: boolean
+[showAdd, setShowAdd]     : boolean
+[editing, setEditing]     : Goal | null
+// Modal-local:
+[title, setTitle]         : string
+[kind, setKind]           : GoalKind
+[target, setTarget]       : string    // string during input; parsed on save
+[current, setCurrent]     : string
+[deadline, setDeadline]   : string
+[err, setErr]             : string | null
+</code></pre>
+<p><strong><code>pricing.tsx</code></strong></p>
+<pre><code class="language-typescript">[tiers, setTiers]         : Tier[]
+[current, setCurrent]     : string   // user's current tier
+[paypalLive, setPaypalLive]: boolean
+[checkoutTier, setCheckoutTier]: Tier | null
+[phase, setPhase]         : 'idle' | 'creating' | 'method' | 'processing' | 'success' | 'error'
+[session, setSession]     : any
+[provider, setProvider]   : 'stripe' | 'paypal'
+[errorMsg, setErrorMsg]   : string | null
+</code></pre>
+<p><strong><code>coach.tsx</code></strong> (streaming)</p>
+<pre><code class="language-typescript">[messages, setMessages]   : {role, content}[]
+[input, setInput]         : string
+[streaming, setStreaming] : boolean
+[currentDelta, setDelta]  : string    // accumulates SSE chunks
+// On submit: fetch → response.body.getReader() → decode → append to delta.
+// On done: push assistant message, clear delta.
+</code></pre>
+<h3 id="54-design-tokens-themetokensts">5.4 Design tokens (<code>theme/tokens.ts</code>)</h3>
+<pre><code class="language-typescript">colors = {
+  brand: '#FFD060',           // Accent gold
+  brandSecondary: '#7FB3FF',  // Cool blue
+  brandTertiary: 'rgba(255,208,96,0.14)',
+  onBrandPrimary: '#0D0B08',
+  surface: '#0A0A0A',
+  surfaceSecondary: '#121212',
+  surfaceTertiary: '#1B1B1B',
+  onSurface: '#FAFAFA',
+  onSurfaceSecondary: '#B8B8B8',
+  onSurfaceTertiary: '#7A7A7A',
+  success: '#45C97A',
+  warning: '#E3A72F',
+  error: '#E5484D',
+  border: '#1F1F1F',
+  borderStrong: '#2A2A2A',
+  divider: '#181818',
+}
+spacing = { xs:4, sm:8, md:12, lg:16, xl:24, xxl:32, xxxl:48 }
+radius  = { sm:6, md:12, lg:20, pill:999 }
+fmtCurrency(n)  → &quot;$24,800&quot;
+fmtCompact(n)   → &quot;24.8k&quot;
+fmtPercent(n)   → &quot;18.4%&quot;
+</code></pre>
+<hr />
+<h2 id="6-third-party-integrations">6. Third-Party Integrations</h2>
+<h3 id="61-emergent-llm-claude-sonnet-45">6.1 Emergent LLM (Claude Sonnet 4.5)</h3>
+<pre><code class="language-python">from emergentintegrations.llm.chat import LlmChat, UserMessage
+chat = LlmChat(api_key=EMERGENT_LLM_KEY, provider=&quot;anthropic&quot;,
+               model=&quot;claude-sonnet-4-5&quot;,
+               system_prompt=coach_system_prompt(user_context))
+async for delta in chat.send_message_stream(session_id=scoped_id,
+                                            message=UserMessage(content=req.message)):
+    yield f&quot;data: {json.dumps({'delta': delta.text})}\n\n&quot;
+</code></pre>
+<p>Session id is scoped: <code>f"{user_id}::{session_id}"</code> so multi-tenant contexts<br />
+never bleed.</p>
+<h3 id="62-paypal-orders-v2">6.2 PayPal Orders v2</h3>
+<p>Endpoints hit:<br />
+- <code>POST https://api-m.{sandbox|}paypal.com/v1/oauth2/token</code> — client_credentials<br />
+- <code>POST /v2/checkout/orders</code> — with <code>intent: CAPTURE</code>, <code>purchase_units[]</code>,<br />
+<code>application_context.return_url/cancel_url</code>, <code>PayPal-Request-Id</code> header for<br />
+  idempotency<br />
+- <code>POST /v2/checkout/orders/{id}/capture</code> — idempotent via header<br />
+- Approval URL is extracted from <code>links[]</code> where <code>rel in ('approve','payer-action')</code></p>
+<p>Deep-link callback flow on mobile:</p>
+<pre><code>Frontend                              Backend                    PayPal
+    │                                    │                          │
+    ├── paypalCreateOrder({tier, return_url, cancel_url}) ──►│
+    │                                    ├── create_order() ──►│
+    │◄──── { order_id, approval_url } ───┤                      │
+    │                                                                │
+    ├── WebBrowser.openAuthSessionAsync(approval_url, return_url)  ─►│
+    │                                                                │  (user approves)
+    │◄──────────────── deep link: return_url?token=&lt;order_id&gt; ──────┤
+    │                                                                │
+    ├── paypalCapture({order_id}) ───────►│                          │
+    │                                     ├── capture_order() ────►│
+    │◄──── { ok, tier, capture_id } ──────┤                          │
+    ▼
+[tier flips, success animation]
+</code></pre>
+<h3 id="63-stripe-test-key-only-mocked-upgrade-path-in-demo">6.3 Stripe (test key only, mocked upgrade path in demo)</h3>
+<p>Real path is prepared: <code>stripe.Balance.retrieve()</code> + <code>stripe.Charge.list()</code><br />
+in <code>integrations.py::stripe_status</code>. Full checkout webhook not yet wired —<br />
+next milestone.</p>
+<h3 id="64-youtube-data-api-v3-dormant">6.4 YouTube Data API v3 (dormant)</h3>
+<p>Real call when <code>YOUTUBE_API_KEY</code> is set:</p>
+<pre><code>GET https://www.googleapis.com/youtube/v3/channels
+    ?part=snippet,statistics
+    &amp;forHandle={handle}
+    &amp;key={YOUTUBE_API_KEY}
+</code></pre>
+<h3 id="65-instagram-graph-api-dormant-stub">6.5 Instagram Graph API (dormant / stub)</h3>
+<p>Endpoint reserved but not implemented — requires Meta App + long-lived token<br />
+handshake. All calls currently return deterministic mock via <code>_mock_instagram</code>.</p>
+<h3 id="66-emergent-google-auth">6.6 Emergent Google Auth</h3>
+<p>Platform-managed. Frontend just calls <code>openAuthSessionAsync(login_url,
+callback_deeplink)</code>. Backend receives the code (or session token embedded in<br />
+the callback) and creates a <code>user_sessions</code> doc with TTL.</p>
+<hr />
+<h2 id="7-security-controls">7. Security Controls</h2>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>Implementation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Multi-tenant isolation</td>
+<td><code>Depends(current_user)</code> + <code>user_id</code> filter on every query</td>
+</tr>
+<tr>
+<td>Session token storage</td>
+<td><code>expo-secure-store</code> on device</td>
+</tr>
+<tr>
+<td>Session expiry</td>
+<td>Mongo TTL index on <code>user_sessions.expires_at</code></td>
+</tr>
+<tr>
+<td>Payment authorization</td>
+<td><code>DEMO_MODE=false</code> blocks mock upgrades (SEC-001 fix)</td>
+</tr>
+<tr>
+<td>Quota / rate limit</td>
+<td><code>quotas.py</code> in-process sliding window (SEC-002 fix)</td>
+</tr>
+<tr>
+<td>Message length cap</td>
+<td>4000 chars (413 on breach)</td>
+</tr>
+<tr>
+<td>Open-redirect defense</td>
+<td>PayPal <code>return_url</code> allowlist (<code>_is_safe_callback_url</code>)</td>
+</tr>
+<tr>
+<td>Server-authoritative pricing</td>
+<td>Tier <code>price_monthly</code> comes only from <code>TIERS</code> dict</td>
+</tr>
+<tr>
+<td>PayPal capture authorization</td>
+<td>Session lookup filters by <code>user_id</code> → cross-user 404</td>
+</tr>
+<tr>
+<td>Idempotency</td>
+<td><code>PayPal-Request-Id</code> on both create + capture</td>
+</tr>
+<tr>
+<td>Secret handling</td>
+<td><code>.env</code> git-ignored; never logged; never returned in errors</td>
+</tr>
+<tr>
+<td>Error sanitization</td>
+<td>AI stream &amp; PayPal errors return generic strings to client</td>
+</tr>
+<tr>
+<td>CORS</td>
+<td><code>allow_origins=["*"]</code> — safe with Bearer (no cookie auth)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-testing-surfaces">8. Testing Surfaces</h2>
+<table>
+<thead>
+<tr>
+<th>Suite</th>
+<th>Coverage</th>
+<th>Count</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_v10_connections_checkout.py</code></td>
+<td>Connections Hub CRUD + Stripe mock checkout</td>
+<td>25</td>
+</tr>
+<tr>
+<td><code>test_v12_paypal_orders.py</code></td>
+<td>PayPal Orders v2 mock flow + auth</td>
+<td>15</td>
+</tr>
+<tr>
+<td><code>test_v13_security_fixes.py</code></td>
+<td>SEC-001 (DEMO_MODE), SEC-002 (quotas), URL allowlist</td>
+<td>25</td>
+</tr>
+<tr>
+<td><code>test_v14_goals_asset_finance.py</code></td>
+<td>Goals PATCH/DELETE, /assets/{id}, /finance mix</td>
+<td>22</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td></td>
+<td><strong>87 pass</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Frontend smoke: Playwright / <code>mcp_screenshot_tool</code> — see <code>test_reports/iteration_14.json</code>.</p>
+<p>Contract tests (recommended additions):<br />
+- Snapshot tests on dashboard/finance response shapes<br />
+- Chaos: kill Mongo mid-request → 503 with retry hint<br />
+- Load: <code>wrk</code>/<code>k6</code> on <code>/dashboard</code> + <code>/ai/chat</code> (streaming latency)</p>
+
+
+<div class="part-title" id="part-3"><h1>Part III — End-to-End User Journey</h1></div>
+<p>Version 1.0 · June 2026 · Companion to <code>01_HLD.md</code> and <code>02_LLD.md</code></p>
+<p>This document walks through <strong>every screen and every interaction</strong> for the<br />
+primary persona <em>"Maya"</em> and documents the edge cases handled at each step.<br />
+The reader should be able to trace what happens client-side, server-side,<br />
+and in the database for any user action.</p>
+<hr />
+<h2 id="persona-maya-nakamura">Persona: Maya Nakamura</h2>
+<ul>
+<li><strong>27, based in Berlin</strong>. Full-time creator since 2024.</li>
+<li>Runs:</li>
+<li><code>@mayabuilds</code> YouTube (148k subs, $4.1k/mo AdSense)</li>
+<li><code>@maya.builds</code> Instagram (72k followers)</li>
+<li><strong>Ship It cohort</strong> — quarterly cohort-based course ($997)</li>
+<li><strong>Ship List</strong> newsletter (18k subs, $6.4k/mo sponsors)</li>
+<li><strong>NotionKit</strong> template shop</li>
+<li>Frustrations: Six tabs open at all times. Never sure "is this month<br />
+  actually profitable?" Wants to feel like a CEO, not a bookkeeper.</li>
+</ul>
+<hr />
+<h2 id="journey-map">Journey Map</h2>
+<pre><code>┌──────────┐   ┌──────────────┐   ┌───────────┐   ┌──────────────┐
+│  Login   │──▶│  Onboarding  │──▶│ Dashboard │──▶│   Anywhere    │
+│ (Google) │   │  3 steps     │   │ (auto-    │   │  Portfolio,   │
+│          │   │              │   │  seeded)  │   │  Coach,       │
+└──────────┘   └──────────────┘   └───────────┘   │  Finance,     │
+                                                    │  Strategy,    │
+                                                    │  Integrations,│
+                                                    │  Goals, etc.  │
+                                                    └──────────────┘
+</code></pre>
+<hr />
+<h2 id="1-first-launch-login">1. First-Launch → Login</h2>
+<h3 id="happy-path">Happy path</h3>
+<ol>
+<li>User opens the app → sees the landing screen (<code>login.tsx</code>) with the<br />
+   CreatorOS mark + tagline: <em>"The business OS for creators."</em></li>
+<li>Taps <strong>Continue with Google</strong> (testID <code>login-google-btn</code>).</li>
+<li><code>AuthContext.signIn()</code> calls <code>WebBrowser.openAuthSessionAsync(
+   loginUrl, deepLinkReturnUrl)</code> — hosted Google Auth screen appears.</li>
+<li>User picks a Google account → consent → Emergent redirects back with<br />
+<code>creatoros://auth/callback?session_id=&lt;opaque_token&gt;</code>.</li>
+<li><code>parseSessionId(url)</code> extracts the token → stored in <code>SecureStore</code>.</li>
+<li><code>GET /api/auth/me</code> hydrates <code>user</code> state.</li>
+<li>Because <code>user.onboarding_complete = false</code>, router pushes <code>/onboarding</code>.</li>
+</ol>
+<h3 id="edge-cases">Edge cases</h3>
+<table>
+<thead>
+<tr>
+<th>Case</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>User dismisses the browser sheet</td>
+<td><code>WebBrowser.type === 'dismiss'</code> → back on login, no state change</td>
+</tr>
+<tr>
+<td>Browser closes without callback</td>
+<td>Silent no-op — user still on login screen</td>
+</tr>
+<tr>
+<td>Malformed callback URL</td>
+<td><code>parseSessionId</code> returns null → error toast "Login failed"</td>
+</tr>
+<tr>
+<td>Stale token in SecureStore</td>
+<td><code>/auth/me</code> returns 401 → context clears token, back to login</td>
+</tr>
+<tr>
+<td>Multiple accounts on device</td>
+<td>Standard Google account picker — no special handling</td>
+</tr>
+<tr>
+<td>Airplane mode</td>
+<td><code>fetch</code> throws → surfaces "Check your connection"</td>
+</tr>
+<tr>
+<td>Session already exists</td>
+<td>Skip login flow, go directly to dashboard</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-onboarding-3-steps">2. Onboarding (3 steps)</h2>
+<h3 id="flow">Flow</h3>
+<pre><code>Step 1 — Handles          Step 2 — Primary Goal        Step 3 — Tier
+YouTube handle input   →  What is your #1 goal?   →   Free / Pro / Studio
+Instagram handle input     (revenue, subs, launch)    (defaults to Free)
+</code></pre>
+<p>On completion:<br />
+- <code>PATCH /api/users/me</code> sets <code>onboarding_complete=true</code>, <code>youtube_handle</code>,<br />
+<code>instagram_handle</code>, <code>primary_goal</code>.<br />
+- Redirect to <code>/(tabs)/index</code> (Dashboard).</p>
+<h3 id="edge-cases_1">Edge cases</h3>
+<table>
+<thead>
+<tr>
+<th>Case</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Blank YouTube handle</td>
+<td>Optional — user can proceed without it</td>
+</tr>
+<tr>
+<td>Handle contains "@"</td>
+<td>Stripped server-side before storage</td>
+</tr>
+<tr>
+<td>User backgrounds mid-onboarding</td>
+<td>Local state preserved (React state) — must complete in one session</td>
+</tr>
+<tr>
+<td>User dies on step 3</td>
+<td>On next login, <code>onboarding_complete=false</code> → resumes at step 3</td>
+</tr>
+<tr>
+<td>Free-tier picked</td>
+<td>No payment prompt shown; user lands on Dashboard normally</td>
+</tr>
+<tr>
+<td>Pro-tier picked at onboarding</td>
+<td>Deep-links to <code>/pricing</code> after step 3</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-dashboard-first-entry">3. Dashboard (first entry)</h2>
+<h3 id="auto-seed-trigger">Auto-seed trigger</h3>
+<p>On the very first <code>GET /api/dashboard</code> for a user:<br />
+1. <code>_ensure_seeded(uid)</code> runs. Idempotent — sets <code>db.users.seeded_at</code>.<br />
+2. Inserts ~8 assets, 4 goals, ~12 content items, 5 recommendations, 3<br />
+   notifications — all scoped to <code>user_id</code>. Numbers are deterministic per<br />
+   user based on <code>_hash_seed(uid)</code>.<br />
+3. Returns the composed dashboard.</p>
+<p>Result: Maya sees a <strong>living, believable OS</strong> on first launch — no empty<br />
+states. Every subsequent request skips the seed check via early-return.</p>
+<h3 id="dashboard-sections-top-bottom">Dashboard sections (top → bottom)</h3>
+<ol>
+<li><strong>Hero</strong> — Revenue MTD, delta vs last 30d, Health score (0–100)</li>
+<li><strong>KPI strip</strong> — 4 tiles: MTD Revenue, MTD Profit, Margin, Runway (mo)</li>
+<li><strong>Radar</strong> — user's percentile vs Top 1% on 6 axes (revenue, followers,<br />
+   consistency, engagement, monetization, growth). Tap → <code>/competitors</code>.</li>
+<li><strong>Top 3 recommendations</strong> — priority-sorted from <code>recommendations</code><br />
+   collection. Each has expected ROI, effort, and a CTA.</li>
+<li><strong>Notifications bell</strong> (top-right) → in-app sheet.</li>
+<li><strong>Pull-to-refresh</strong> — re-fetches dashboard.</li>
+</ol>
+<h3 id="edge-cases_2">Edge cases</h3>
+<table>
+<thead>
+<tr>
+<th>Case</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Seed race (two dashboard hits in parallel)</td>
+<td><code>_ensure_seeded</code> uses <code>$setOnInsert</code> — only one wins</td>
+</tr>
+<tr>
+<td>User has 0 assets somehow</td>
+<td>Hero shows $0 with helper: "Add your first asset →"</td>
+</tr>
+<tr>
+<td>Radar has one axis at 0</td>
+<td>Draws truncated polygon without crashing</td>
+</tr>
+<tr>
+<td>Session expired mid-fetch</td>
+<td>401 → AuthContext clears token → route back to login</td>
+</tr>
+<tr>
+<td>Backend timeout</td>
+<td>Retry banner at the top; last cached data still visible</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-portfolio-per-asset-detail">4. Portfolio → Per-Asset Detail</h2>
+<h3 id="portfolio-tabsportfoliotsx">Portfolio (<code>/(tabs)/portfolio.tsx</code>)</h3>
+<ul>
+<li>Renders <code>assets[]</code> as sparkline-decorated rows.</li>
+<li>Top summary strip: total revenue MTD, portfolio AI score (avg), asset count.</li>
+<li>Floating "+" button → <code>AddAssetModal</code>.</li>
+<li>Tap a row → <code>router.push('/asset/&lt;id&gt;')</code>.</li>
+</ul>
+<h3 id="addassetmodal-edge-cases-validation-ux-overhauled-in-iter_14">AddAssetModal edge cases (validation UX overhauled in iter_14)</h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Validation</th>
+<th>Error text</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>name</td>
+<td>required, 2–80 chars</td>
+<td>"Name is required" / "At least 2 characters"</td>
+</tr>
+<tr>
+<td>revenue_mtd</td>
+<td>optional; if given, ≥0 and ≤10,000,000</td>
+<td>"Enter a positive number"</td>
+</tr>
+<tr>
+<td>followers</td>
+<td>optional; if given, ≥0 and ≤1,000,000,000</td>
+<td>"Value too large"</td>
+</tr>
+<tr>
+<td>Submit btn</td>
+<td>disabled while any error present or <code>busy=true</code></td>
+<td></td>
+</tr>
+<tr>
+<td>Server error</td>
+<td>Banner: "Failed to create — try again"</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Numeric fields strip non-numeric characters on input so "-" / "e" can never<br />
+enter state.</p>
+<h3 id="asset-detail-assetid">Asset detail (<code>/asset/[id]</code>)</h3>
+<p>Fetches <code>GET /api/assets/{id}</code>:</p>
+<pre><code class="language-json">{
+  &quot;asset&quot;: { ... },
+  &quot;content&quot;: [{...} × 20],
+  &quot;recommendations&quot;: [{...} × ≤4],
+  &quot;benchmarks&quot;: {
+    &quot;top_1pct_followers&quot;: 473600,   // 3.2× user's followers
+    &quot;top_1pct_revenue&quot;:   114080,   // 4.6× user's MTD
+    &quot;median_engagement&quot;:  4.8,
+    &quot;your_engagement&quot;:    6.4
+  },
+  &quot;kpis&quot;: [
+    {&quot;label&quot;:&quot;AI Score&quot;,&quot;value&quot;:88,&quot;unit&quot;:&quot;/100&quot;},
+    {&quot;label&quot;:&quot;Revenue MTD&quot;,&quot;value&quot;:24800,&quot;unit&quot;:&quot;$&quot;},
+    {&quot;label&quot;:&quot;Profit margin&quot;,&quot;value&quot;:75,&quot;unit&quot;:&quot;%&quot;},
+    {&quot;label&quot;:&quot;Audience&quot;,&quot;value&quot;:4200,&quot;unit&quot;:&quot;reach&quot;}
+  ]
+}
+</code></pre>
+<p>UI sections:<br />
+1. Hero — platform emoji + AI score ring + trend area chart + category<br />
+2. KPI grid — 4 cells<br />
+3. Top-1% benchmark card — dual bars + "gap to close" split block<br />
+4. Scoped recommendations (filtered by platform in title/summary)<br />
+5. Recent content list — top 6 with virality score</p>
+<h3 id="edge-cases_3">Edge cases</h3>
+<table>
+<thead>
+<tr>
+<th>Case</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Asset id doesn't belong to user</td>
+<td>404 → error screen "Could not load this asset." + back button</td>
+</tr>
+<tr>
+<td>Deleted mid-view</td>
+<td>Same 404 path</td>
+</tr>
+<tr>
+<td>No recent content for platform</td>
+<td>Section hidden, EmptyState shown at bottom</td>
+</tr>
+<tr>
+<td>No recommendations</td>
+<td>Section hidden</td>
+</tr>
+<tr>
+<td>Followers = 0</td>
+<td>Gap block shows "0" instead of NaN</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-ai-coach-streaming">5. AI Coach (streaming)</h2>
+<h3 id="flow-tabscoachtsx">Flow (<code>/(tabs)/coach.tsx</code>)</h3>
+<ol>
+<li>User types → tap Send.</li>
+<li>Client calls <code>POST /api/ai/chat</code> and consumes the SSE stream via<br />
+<code>response.body.getReader()</code>.</li>
+<li>Each <code>data: {"delta":"..."}</code> chunk appends to <code>currentDelta</code> state and<br />
+   re-renders the streaming bubble.</li>
+<li>On stream close, the bubble commits to <code>messages[]</code> as an assistant<br />
+   message.</li>
+</ol>
+<h3 id="quota-validation">Quota &amp; validation</h3>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>HTTP</th>
+<th>Client UX</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Empty message</td>
+<td>400</td>
+<td>Send button disabled while <code>input.trim()===''</code></td>
+</tr>
+<tr>
+<td>Message &gt; 4000 chars</td>
+<td>413</td>
+<td>Client cuts input at 4000 with warning</td>
+</tr>
+<tr>
+<td>Free tier: 11th user-role msg in 24h</td>
+<td>402</td>
+<td>Banner: "Free tier: 10 msgs/day. Upgrade →"</td>
+</tr>
+<tr>
+<td>Burst: 31st msg in 60s</td>
+<td>429</td>
+<td>Toast: "Slow down — try again in Xs"</td>
+</tr>
+<tr>
+<td>No <code>EMERGENT_LLM_KEY</code></td>
+<td>500</td>
+<td>Toast: "AI temporarily unavailable"</td>
+</tr>
+</tbody>
+</table>
+<h3 id="edge-cases_4">Edge cases</h3>
+<table>
+<thead>
+<tr>
+<th>Case</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>User pulls up new conversation</td>
+<td><code>session_id = "coach-&lt;uuid&gt;"</code> — new context (persisted)</td>
+</tr>
+<tr>
+<td>App backgrounded mid-stream</td>
+<td>Stream aborts. On resume, <code>chat_history</code> re-hydrates</td>
+</tr>
+<tr>
+<td>Network drops mid-stream</td>
+<td>Partial delta shown with "Response cut off — retry"</td>
+</tr>
+<tr>
+<td>Backend <code>except Exception</code></td>
+<td><code>data: {"error":"AI stream failed. Please retry."}</code> — no internal text leaked</td>
+</tr>
+<tr>
+<td>User has 200 msgs in history</td>
+<td>Only last 50 hydrated in view; API returns full history on demand</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-strategy-planner">6. Strategy Planner</h2>
+<h3 id="flow-strategytsx">Flow (<code>/strategy.tsx</code>)</h3>
+<ol>
+<li>Picks horizon: <strong>30 / 60 / 90</strong> days.</li>
+<li>Optional focus text (e.g. "Launch NotionKit v2 by August").</li>
+<li><code>POST /api/strategy/plans</code> — streams Claude Sonnet 4.5 output, parses JSON<br />
+   at end, persists.</li>
+<li>Renders phases (usually 3–5) with checkbox tasks. Toggling a checkbox<br />
+   calls <code>PATCH /strategy/{plan_id}/task</code> which recomputes <code>progress_pct</code>.</li>
+</ol>
+<h3 id="edge-cases_5">Edge cases</h3>
+<table>
+<thead>
+<tr>
+<th>Case</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td 30_60_90="30,60,90">horizon not in</td>
+<td>400</td>
+</tr>
+<tr>
+<td>Focus text &gt;500 chars</td>
+<td>413</td>
+</tr>
+<tr>
+<td>Free tier: 2nd plan in a week</td>
+<td>402 → "Free tier: 1 plan/week. Upgrade →"</td>
+</tr>
+<tr>
+<td>Burst: 6th plan in an hour</td>
+<td>429</td>
+</tr>
+<tr>
+<td>Claude returns malformed JSON</td>
+<td>Fallback: raw markdown shown; task toggling disabled</td>
+</tr>
+<tr>
+<td>User completes all tasks</td>
+<td><code>progress_pct=100</code>, confetti animation, badge on Dashboard</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-connections-hub">7. Connections Hub</h2>
+<h3 id="flow-integrations">Flow (<code>/integrations</code>)</h3>
+<p>Shows 4 provider cards. Each has a Connect button until connected, then<br />
+shows summary metrics + "View data" + Disconnect.</p>
+<h3 id="connect-flow-oauth-simulation">Connect flow (OAuth simulation)</h3>
+<pre><code>Tap &quot;Connect X&quot; → modal opens
+  ├─ Input handle (yt/ig) or email (stripe/paypal)
+  ├─ Show permission list (read-only)
+  ├─ Submit → phase='redirect' (500ms fake) → phase='authorizing' (backend call)
+  ├─ Backend upserts db.connections + returns summary
+  ├─ phase='success' with checkmark animation
+  └─ Modal auto-closes after 900ms; list refetches
+</code></pre>
+<h3 id="edge-cases_6">Edge cases</h3>
+<table>
+<thead>
+<tr>
+<th>Case</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Empty handle</td>
+<td>Inline error "Please enter your YouTube handle"</td>
+</tr>
+<tr>
+<td>Stripe/PayPal: not a valid email</td>
+<td>Inline error "Please enter a valid email"</td>
+</tr>
+<tr>
+<td>Backend 502 during connect</td>
+<td>Modal returns to input phase with error toast</td>
+</tr>
+<tr>
+<td>Handle already connected (reconnect)</td>
+<td><code>upsert</code> updates in-place; summary refreshed</td>
+</tr>
+<tr>
+<td>Long-press disconnect while offline</td>
+<td>Alert stays open; retry once online</td>
+</tr>
+<tr>
+<td>Real API key present but call fails</td>
+<td>Falls back to deterministic mock, <code>mocked: true</code> in payload</td>
+</tr>
+</tbody>
+</table>
+<h3 id="detail-sheet">Detail sheet</h3>
+<p>Full stats + recent items (videos/reels/charges/transactions). Refetches<br />
+the appropriate endpoint on open. Uses <code>mode: 'test' | 'live'</code> badge for<br />
+Stripe/PayPal.</p>
+<hr />
+<h2 id="8-pricing-checkout">8. Pricing → Checkout</h2>
+<h3 id="flow-pricingtsx">Flow (<code>/pricing.tsx</code>)</h3>
+<ol>
+<li>Tier cards render from <code>GET /api/billing/plans</code>. Current tier is disabled.</li>
+<li>Tap <strong>Upgrade to Pro</strong> → <code>CheckoutModal</code> opens in <code>phase='method'</code>.</li>
+<li>Pick Stripe (default) or PayPal. If PayPal keys are set the option shows<br />
+   a <strong>LIVE</strong> badge in green.</li>
+<li>Tap <strong>Pay $X securely</strong>:<br />
+   - <strong>Stripe path (mock)</strong>: <code>POST /billing/checkout</code> → wait 1.4s →<br />
+<code>POST /billing/checkout/confirm</code> → tier flips.<br />
+   - <strong>PayPal path (mock)</strong>: <code>POST /paypal/create-order</code> (approval_url:null)<br />
+     → simulated processing → <code>POST /paypal/capture</code> → tier flips.<br />
+   - <strong>PayPal path (live)</strong>: <code>POST /paypal/create-order</code> returns real<br />
+<code>approval_url</code> → <code>WebBrowser.openAuthSessionAsync(approval_url, return_url)</code><br />
+     → user approves at PayPal → app receives <code>return_url?token=&lt;order_id&gt;</code><br />
+     → <code>POST /paypal/capture</code> → real PayPal capture → tier flips.</li>
+<li>Success phase: green check + "You're on Pro!" auto-close.</li>
+</ol>
+<h3 id="edge-cases-matrix">Edge cases matrix</h3>
+<table>
+<thead>
+<tr>
+<th>Case</th>
+<th>HTTP</th>
+<th>Client UX</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Trying to checkout Free tier</td>
+<td>400</td>
+<td>Tier button disabled — never reached</td>
+</tr>
+<tr>
+<td>Invalid <code>return_url</code> (open-redirect attempt)</td>
+<td>400</td>
+<td>Toast: "Invalid checkout URL"</td>
+</tr>
+<tr>
+<td>PayPal user cancels in browser</td>
+<td>—</td>
+<td>Modal switches to error state with Retry/Cancel</td>
+</tr>
+<tr>
+<td>PayPal capture fails (already captured)</td>
+<td>502</td>
+<td>"PayPal capture failed — order not approved or already captured"</td>
+</tr>
+<tr>
+<td>DEMO_MODE=false + mock capture attempted</td>
+<td>402</td>
+<td>"Payment required — configure real keys"</td>
+</tr>
+<tr>
+<td>DEMO_MODE=false + /billing/upgrade</td>
+<td>410</td>
+<td>Never called from client</td>
+</tr>
+<tr>
+<td>Double-tap Pay button</td>
+<td>—</td>
+<td creating_processing="creating,processing">Ignored — modal is <code>busy</code> while phase in</td>
+</tr>
+<tr>
+<td>Backend restart mid-processing</td>
+<td>5xx</td>
+<td>Client retries once; else error state</td>
+</tr>
+<tr>
+<td>Real Stripe webhook not implemented</td>
+<td>—</td>
+<td>Tier will not flip in prod until webhook is wired</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9-goal-tracking">9. Goal Tracking</h2>
+<h3 id="flow-goalstsx">Flow (<code>/goals.tsx</code>)</h3>
+<ol>
+<li>Summary card: Active / Completed / Avg progress %.</li>
+<li>Goal cards with progress bars. Tap → edit. Long-press → delete confirm.</li>
+<li>"+" button → add modal with type chips (revenue, subscribers, followers,<br />
+   launch, content).</li>
+<li>Deadline is optional; if given, must be <code>YYYY-MM-DD</code>.</li>
+</ol>
+<h3 id="backend-validation">Backend validation</h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Rule</th>
+<th>Error</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>title</td>
+<td>required, non-empty, ≤120 chars</td>
+<td>400 "Title cannot be empty" / 413 "Title too long"</td>
+</tr>
+<tr>
+<td>target</td>
+<td>&gt; 0</td>
+<td>400 "target must be positive"</td>
+</tr>
+<tr>
+<td>current</td>
+<td>≥ 0</td>
+<td>400 "current cannot be negative"</td>
+</tr>
+<tr>
+<td>ownership</td>
+<td>must match user_id</td>
+<td>404 "Goal not found"</td>
+</tr>
+</tbody>
+</table>
+<h3 id="edge-cases_7">Edge cases</h3>
+<table>
+<thead>
+<tr>
+<th>Case</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Delete goal not owned by user</td>
+<td>404 (silent; UI still refetches list)</td>
+</tr>
+<tr>
+<td>Deadline in past</td>
+<td>UI shows red "Xd overdue"</td>
+</tr>
+<tr>
+<td>current &gt; target</td>
+<td>Progress bar caps at 100%, goal marked "Complete"</td>
+</tr>
+<tr>
+<td>Delete during another user's request</td>
+<td>Cross-user isolation → 404, no data loss</td>
+</tr>
+<tr>
+<td>200+ goals</td>
+<td>List is a <code>ScrollView</code> (no virtualization) — acceptable for typical usage &lt;50</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="10-global-edge-case-matrix">10. Global Edge-Case Matrix</h2>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Case</th>
+<th>Handling</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Auth</strong></td>
+<td>Session expired</td>
+<td>401 → AuthContext clears token → route to <code>/login</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Session token tampered</td>
+<td>401</td>
+</tr>
+<tr>
+<td></td>
+<td>Token stored on stolen device</td>
+<td>Mongo TTL expires it; user can also <code>POST /auth/logout</code> remotely (future)</td>
+</tr>
+<tr>
+<td><strong>Data</strong></td>
+<td>Cross-user read/write</td>
+<td>Filter by user_id → 404 (never 403; don't leak existence)</td>
+</tr>
+<tr>
+<td></td>
+<td>Deleted asset referenced by strategy plan</td>
+<td>Plan renders; nav to asset detail 404s → "Not found"</td>
+</tr>
+<tr>
+<td><strong>Payments</strong></td>
+<td>Duplicate PayPal capture</td>
+<td>Backend detects <code>status=='complete'</code> → returns <code>already_complete: true</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Stripe/PayPal webhook missing (prod)</td>
+<td>Tier stays free; user contacts support</td>
+</tr>
+<tr>
+<td></td>
+<td>Amount tampering (client sends different amount)</td>
+<td>Backend ignores; pricing derived server-side from TIERS</td>
+</tr>
+<tr>
+<td><strong>Network</strong></td>
+<td>Offline</td>
+<td>fetch throws; UI shows "Check your connection"</td>
+</tr>
+<tr>
+<td></td>
+<td>Slow 3G</td>
+<td>Skeletons on Dashboard/Portfolio; ActivityIndicator elsewhere</td>
+</tr>
+<tr>
+<td><strong>LLM</strong></td>
+<td>Rate limit from provider</td>
+<td>429 → user-facing toast; retry after backoff</td>
+</tr>
+<tr>
+<td></td>
+<td>Long response</td>
+<td>Streamed progressively; no timeout on client</td>
+</tr>
+<tr>
+<td></td>
+<td>User navigates away mid-stream</td>
+<td>Stream aborts on unmount; partial message discarded</td>
+</tr>
+<tr>
+<td><strong>Permissions (native)</strong></td>
+<td>No permissions used yet — no camera/mic/location required for MVP</td>
+<td>N/A</td>
+</tr>
+<tr>
+<td><strong>Backgrounding</strong></td>
+<td>iOS suspends network</td>
+<td>On resume, <code>AppState</code> listener refetches dashboard</td>
+</tr>
+<tr>
+<td><strong>Push notifications</strong></td>
+<td>Not implemented</td>
+<td>Design uses in-app notifications only (<code>/notifications</code>)</td>
+</tr>
+<tr>
+<td><strong>Deep links</strong></td>
+<td>Malformed callback</td>
+<td>Silent ignore</td>
+</tr>
+<tr>
+<td><strong>Currency/locale</strong></td>
+<td>Non-USD users</td>
+<td>All numbers formatted as USD (MVP); i18n on backlog</td>
+</tr>
+<tr>
+<td><strong>Time zones</strong></td>
+<td>User in JST vs server UTC</td>
+<td>All timestamps stored &amp; compared in UTC; client formats to local</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="11-instrumentation-hooks-expected">11. Instrumentation Hooks Expected</h2>
+<p>Every screen transition and every server action should emit an analytics<br />
+event. See <code>04_METRICS_AND_AB.md</code> for the taxonomy.</p>
+<p>Recommended event names (not yet fully wired):<br />
+- <code>onboarding_step_complete{step:int}</code><br />
+- <code>dashboard_loaded{seeded:bool, ms:int}</code><br />
+- <code>ai_chat_message_sent{tier:str, len:int}</code><br />
+- <code>ai_chat_stream_error{code:str}</code><br />
+- <code>strategy_plan_generated{horizon:int, ms:int, tier:str}</code><br />
+- <code>connect_provider_attempted{provider:str}</code><br />
+- <code>connect_provider_succeeded{provider:str}</code><br />
+- <code>checkout_started{tier, provider}</code><br />
+- <code>checkout_completed{tier, provider, real:bool}</code><br />
+- <code>checkout_failed{tier, provider, reason:str}</code><br />
+- <code>goal_created{kind}</code> / <code>goal_completed{kind, days_to_close}</code><br />
+- <code>rate_limit_hit{kind:str, tier:str}</code></p>
+
+
+<div class="part-title" id="part-4"><h1>Part IV — Evaluation Metrics & A/B Testing</h1></div>
+<p>Version 1.0 · June 2026 · Companion to <code>01_HLD.md</code>, <code>02_LLD.md</code>, <code>03_USER_JOURNEY.md</code></p>
+<p>Purpose: define <strong>what "success" means</strong> for CreatorOS, how it is measured<br />
+end-to-end, and how experiments are designed, powered, and analyzed.</p>
+<hr />
+<h2 id="1-measurement-philosophy">1. Measurement Philosophy</h2>
+<p>We treat CreatorOS as a <strong>compound product</strong>:</p>
+<ol>
+<li>Data platform (portfolio + finance) — value = <em>insight density per session</em></li>
+<li>AI advisor (Coach + Strategy) — value = <em>actions the user commits to</em></li>
+<li>Business OS (goals, integrations, payments) — value = <em>time saved &amp; tier upgrades</em></li>
+</ol>
+<p>Every metric ladders up to a single north star. Every experiment either<br />
+improves the north star directly or improves an input metric proven to<br />
+correlate with it.</p>
+<hr />
+<h2 id="2-metric-tree">2. Metric Tree</h2>
+<pre><code>                         ┌─────────────────────────────────┐
+                         │       NORTH STAR METRIC          │
+                         │  Weekly Actioned Insights (WAI)  │
+                         │  = per-user count of {AI recs    │
+                         │  accepted, strategy tasks done,  │
+                         │  goals updated} in last 7 days   │
+                         └───────────────┬─────────────────┘
+                                         │
+       ┌─────────────────────────────────┼─────────────────────────────────┐
+       ▼                                 ▼                                 ▼
+┌──────────────┐                ┌──────────────┐                  ┌──────────────┐
+│  Engagement  │                │   Insight    │                  │ Monetization │
+│  L2, L3, L4  │                │  Generation  │                  │              │
+└──────┬───────┘                └──────┬───────┘                  └──────┬───────┘
+       │                                │                                 │
+       ▼                                ▼                                 ▼
+ D1, W1, W4                    Insights delivered              Free → Pro conv %
+ retention                     per active user                 Pro net retention
+ Sessions/week                 AI plan completion rate         ARPU
+ Session length                Recs-to-action rate             Payment success %
+ Deep-linked opens             Chat msgs / week                Free-tier cap hits
+</code></pre>
+<h3 id="21-north-star-wai-weekly-actioned-insights">2.1 North Star — WAI (Weekly Actioned Insights)</h3>
+<p>Formal definition:</p>
+<pre><code>WAI(user, week) = |{ acts in that week where act ∈ {
+  ai_recommendation_dismissed_with_action == True,
+  strategy_task_completed,
+  goal_progress_updated (current field changed),
+  asset_added,
+  new_connection_established,
+} }|
+</code></pre>
+<p>Rationale: measures whether the app is turning insight into action. Pure<br />
+usage metrics (session count) reward re-opens; WAI rewards value delivery.<br />
+The <strong>North Star Target for Q3 2026: median WAI per active user ≥ 5.</strong></p>
+<h3 id="22-layered-kpi-reference">2.2 Layered KPI reference</h3>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>KPI</th>
+<th>Definition</th>
+<th>Q3 target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Acquisition</td>
+<td>Signup conversion</td>
+<td>login-arrived / login-shown</td>
+<td>≥ 32%</td>
+</tr>
+<tr>
+<td></td>
+<td>Onboarding completion</td>
+<td>Step-3-complete / signup</td>
+<td>≥ 70%</td>
+</tr>
+<tr>
+<td>Activation</td>
+<td>Time-to-First-Insight (TTFI)</td>
+<td>signup → first AI rec viewed</td>
+<td>&lt; 3 min</td>
+</tr>
+<tr>
+<td></td>
+<td>Time-to-First-Strategy</td>
+<td>signup → first plan generated</td>
+<td>&lt; 12 min</td>
+</tr>
+<tr>
+<td>Retention</td>
+<td>D1 / W1 / W4</td>
+<td>active on day/week 1/4 after signup</td>
+<td>62 / 45 / 28 %</td>
+</tr>
+<tr>
+<td>Engagement</td>
+<td>Median sessions / week</td>
+<td>Any authenticated app open</td>
+<td>≥ 4</td>
+</tr>
+<tr>
+<td></td>
+<td>Coach msgs / week (free)</td>
+<td>User-role msgs, capped by quota</td>
+<td>6–10</td>
+</tr>
+<tr>
+<td>Insight</td>
+<td>AI plan completion rate</td>
+<td>plans with <code>progress_pct = 100</code></td>
+<td>≥ 40%</td>
+</tr>
+<tr>
+<td></td>
+<td>Rec-to-action rate</td>
+<td>recs marked "done"/"applied"</td>
+<td>≥ 25%</td>
+</tr>
+<tr>
+<td>Monetization</td>
+<td>Free → Pro conversion</td>
+<td>Trialists who upgrade within 14 days</td>
+<td>≥ 4%</td>
+</tr>
+<tr>
+<td></td>
+<td>Payment success rate</td>
+<td>checkout_completed / checkout_started</td>
+<td>≥ 92%</td>
+</tr>
+<tr>
+<td></td>
+<td>Free-tier cap hit rate</td>
+<td>Users hitting <code>/ai/chat</code> 402 in a week</td>
+<td>Watch — high = raise limits or promote upgrade</td>
+</tr>
+<tr>
+<td>Reliability</td>
+<td>API p95 latency</td>
+<td>Nginx → Uvicorn RTT</td>
+<td>&lt; 400 ms</td>
+</tr>
+<tr>
+<td></td>
+<td>AI TTFT (time to first token)</td>
+<td>Client-observed</td>
+<td>&lt; 1200 ms</td>
+</tr>
+<tr>
+<td></td>
+<td>Crash-free sessions</td>
+<td>Sentry crash rate</td>
+<td>≥ 99.6%</td>
+</tr>
+<tr>
+<td>Trust</td>
+<td>Cross-user isolation regressions</td>
+<td>pytest failures</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-event-taxonomy">3. Event Taxonomy</h2>
+<p>All events are POSTed to <code>/api/analytics</code> (to be built) with a common envelope:</p>
+<pre><code class="language-json">{
+  &quot;event&quot;: &quot;checkout_completed&quot;,
+  &quot;at&quot;: &quot;2026-06-15T18:03:22Z&quot;,
+  &quot;user_id&quot;: &quot;uuid&quot;,
+  &quot;tier&quot;: &quot;pro&quot;,
+  &quot;session&quot;: {&quot;device&quot;: &quot;ios&quot;, &quot;app_version&quot;: &quot;1.4.0&quot;, &quot;build&quot;: 200},
+  &quot;props&quot;: { &quot;provider&quot;: &quot;paypal&quot;, &quot;amount&quot;: 29, &quot;real&quot;: true, &quot;duration_ms&quot;: 3410 }
+}
+</code></pre>
+<h3 id="31-event-catalogue">3.1 Event catalogue</h3>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Required props</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>signup_started</code></td>
+<td>source</td>
+</tr>
+<tr>
+<td><code>signup_completed</code></td>
+<td>provider (google), ms</td>
+</tr>
+<tr>
+<td><code>onboarding_step_started</code></td>
+<td>step (1,2,3)</td>
+</tr>
+<tr>
+<td><code>onboarding_step_completed</code></td>
+<td>step, dwell_ms</td>
+</tr>
+<tr>
+<td><code>dashboard_loaded</code></td>
+<td>seeded (bool), ms, kpi_count</td>
+</tr>
+<tr>
+<td><code>asset_added</code></td>
+<td>platform, source ("modal"</td>
+</tr>
+<tr>
+<td><code>asset_detail_viewed</code></td>
+<td>asset_id, platform</td>
+</tr>
+<tr>
+<td><code>ai_chat_message_sent</code></td>
+<td>tier, len, session_id</td>
+</tr>
+<tr>
+<td><code>ai_chat_stream_started</code></td>
+<td>ttft_ms</td>
+</tr>
+<tr>
+<td><code>ai_chat_stream_completed</code></td>
+<td>total_ms, tokens_out</td>
+</tr>
+<tr>
+<td><code>ai_chat_stream_error</code></td>
+<td>reason</td>
+</tr>
+<tr>
+<td><code>strategy_plan_requested</code></td>
+<td>horizon, tier</td>
+</tr>
+<tr>
+<td><code>strategy_plan_generated</code></td>
+<td>horizon, ms</td>
+</tr>
+<tr>
+<td><code>strategy_task_completed</code></td>
+<td>plan_id, task_id, plan_progress_pct</td>
+</tr>
+<tr>
+<td><code>goal_created</code></td>
+<td>kind</td>
+</tr>
+<tr>
+<td><code>goal_updated</code></td>
+<td>kind, delta_pct</td>
+</tr>
+<tr>
+<td><code>goal_completed</code></td>
+<td>kind, days_to_close</td>
+</tr>
+<tr>
+<td><code>connect_provider_attempted</code></td>
+<td>provider</td>
+</tr>
+<tr>
+<td><code>connect_provider_succeeded</code></td>
+<td>provider, mocked</td>
+</tr>
+<tr>
+<td><code>connect_provider_failed</code></td>
+<td>provider, reason</td>
+</tr>
+<tr>
+<td><code>checkout_started</code></td>
+<td>tier, provider</td>
+</tr>
+<tr>
+<td><code>checkout_method_selected</code></td>
+<td>tier, provider</td>
+</tr>
+<tr>
+<td><code>checkout_completed</code></td>
+<td>tier, provider, real, ms</td>
+</tr>
+<tr>
+<td><code>checkout_failed</code></td>
+<td>tier, provider, code, reason</td>
+</tr>
+<tr>
+<td><code>quota_hit</code></td>
+<td>kind (chat</td>
+</tr>
+<tr>
+<td><code>upgrade_cta_shown</code></td>
+<td>placement (chat_402</td>
+</tr>
+<tr>
+<td><code>upgrade_cta_tapped</code></td>
+<td>placement</td>
+</tr>
+<tr>
+<td><code>recommendation_shown</code> / <code>recommendation_actioned</code></td>
+<td>rec_id, priority</td>
+</tr>
+</tbody>
+</table>
+<h3 id="32-instrumentation-levels">3.2 Instrumentation levels</h3>
+<ul>
+<li><strong>Client</strong> — Every screen entry, every button tap with meaningful side<br />
+  effect, every stream begin/end. Batched every 15s with retry on backoff.</li>
+<li><strong>Server</strong> — Every 4xx/5xx on payment or quota endpoints logged with<br />
+  reason. Every DEMO_MODE tier flip logged as WARNING for audit.</li>
+<li><strong>Aggregation</strong> — Daily rollup job writes <code>daily_metrics</code> per user for<br />
+  fast dashboard reads.</li>
+</ul>
+<hr />
+<h2 id="4-ab-testing-framework">4. A/B Testing Framework</h2>
+<h3 id="41-assignment">4.1 Assignment</h3>
+<pre><code>bucket(user_id, experiment_key) =
+   int(md5(f&quot;{user_id}:{experiment_key}&quot;).hexdigest()[:8], 16) % 100
+</code></pre>
+<ul>
+<li>Stable per user per experiment.</li>
+<li>Ramp control: expose only bucket &lt; RAMP_PCT.</li>
+<li>Variant assignment written to <code>db.experiments</code> for the user on first<br />
+  exposure and never mutated (avoids the "peeked at data, moved a user"<br />
+  bias).</li>
+</ul>
+<h3 id="42-framework-contract">4.2 Framework contract</h3>
+<pre><code class="language-python"># backend/experiments.py (to be built)
+def get_variant(user_id: str, key: str, variants: list[str],
+                ramp_pct: int = 100) -&gt; str | None:
+    &quot;&quot;&quot;
+    Returns None if user is outside the ramp — caller renders control.
+    Otherwise deterministically hashes into one variant.
+    Persists the assignment on first call.
+    &quot;&quot;&quot;
+</code></pre>
+<p>Frontend calls <code>useExperiment(key, variants)</code> — returns variant string.<br />
+Every render/exposure emits <code>exposure_recorded{experiment, variant}</code> event.</p>
+<h3 id="43-sample-size-power">4.3 Sample size &amp; power</h3>
+<p>Standard settings:<br />
+- α = 0.05 (two-sided)<br />
+- 1−β = 0.8<br />
+- Baseline conversion rates observed from <code>daily_metrics</code> for the past 4<br />
+  weeks. Effect-size floor: <strong>relative +10%</strong> for growth metrics,<br />
+<strong>absolute +2pp</strong> for retention.</p>
+<p>Rule of thumb:</p>
+<pre><code>n_per_arm ≈ 16 * p*(1-p) / MDE²
+</code></pre>
+<p>For a 4% Free→Pro baseline and a +1pp MDE: n ≈ 61,400 per arm (which<br />
+means we're often bandwidth-limited and must pick fewer, larger bets).</p>
+<h3 id="44-guardrails">4.4 Guardrails</h3>
+<p>Every experiment must declare:<br />
+- Primary metric (usually WAI or a direct input)<br />
+- Guardrails that MUST NOT regress by more than X% at 95% CI:<br />
+  - crash-free sessions (never &lt; 99.4%)<br />
+  - checkout success rate<br />
+  - AI TTFT<br />
+  - Free-tier cap hit rate (must not spike)<br />
+  - Session duration (protect from dark-pattern outcomes)</p>
+<p>Auto-stop if any guardrail regresses beyond threshold for 3 consecutive days.</p>
+<hr />
+<h2 id="5-reference-experiments-q3-2026">5. Reference Experiments (Q3 2026)</h2>
+<h3 id="e1-onboarding-3-step-vs-1-step">E1 — Onboarding: 3-step vs 1-step</h3>
+<ul>
+<li><strong>Hypothesis</strong>: A single "handles + goal" screen increases completion<br />
+  by ≥ 8pp without hurting downstream activation.</li>
+<li>Primary: onboarding_completion</li>
+<li>Secondary: TTFI, W1 retention</li>
+<li>Guardrails: crash-free, drop-off at step 1</li>
+<li>Sample: 12k signups → ~4 weeks</li>
+</ul>
+<h3 id="e2-ai-coach-quota-surface">E2 — AI Coach quota surface</h3>
+<ul>
+<li><strong>Hypothesis</strong>: Showing "3 of 10 free msgs used" preemptively reduces<br />
+  friction at 402 and lifts Free→Pro by ≥ 1pp.</li>
+<li>Variants: Control (no meter) / Meter-only / Meter + upsell chip</li>
+<li>Primary: Free→Pro conv within 14d of first quota_hit</li>
+<li>Secondary: chat msgs/week, upgrade_cta_tapped rate</li>
+</ul>
+<h3 id="e3-dashboard-hero-framing">E3 — Dashboard hero framing</h3>
+<ul>
+<li><strong>Hypothesis</strong>: Leading with <strong>profit</strong> instead of <strong>revenue</strong> in the<br />
+  hero card correlates with faster action on recommendations.</li>
+<li>Variants: revenue-first / profit-first / margin-first</li>
+<li>Primary: WAI within 7 days of first exposure</li>
+<li>Secondary: rec_actioned rate</li>
+</ul>
+<h3 id="e4-strategy-plan-default-horizon">E4 — Strategy plan default horizon</h3>
+<ul>
+<li><strong>Hypothesis</strong>: Defaulting to 30 days (vs 60) increases plan completion<br />
+  rate ≥ 5pp because scope feels tractable.</li>
+<li>Variants: 30 (control) / 60 / 90</li>
+<li>Primary: strategy_plan_completion (progress_pct = 100 within 45d)</li>
+<li>Guardrails: strategy_plan_requested rate</li>
+</ul>
+<h3 id="e5-checkout-provider-order">E5 — Checkout provider order</h3>
+<ul>
+<li><strong>Hypothesis</strong>: Placing PayPal above Stripe for non-US users increases<br />
+  checkout success ≥ 4pp.</li>
+<li>Variants: Stripe-first (control) / PayPal-first</li>
+<li>Primary: checkout_completed / checkout_started</li>
+<li>Cohort: users whose Google account country ∈ EU|LatAm</li>
+</ul>
+<h3 id="e6-ai-coach-system-prompt-llm-eval">E6 — AI Coach system prompt (LLM eval)</h3>
+<ul>
+<li>Two prompt variants (concise vs empathic). Each user routed to one.</li>
+<li>Primary: <code>msg_helpful_thumb_up_rate</code> (add thumbs-up/down UI to bubbles)</li>
+<li>Secondary: assistant_ttft_ms, chat_len_msgs</li>
+<li>Uses <strong>CTR × conversion</strong> as the joint OEC (Overall Evaluation Criterion)</li>
+</ul>
+<hr />
+<h2 id="6-ai-specific-evaluation">6. AI-specific Evaluation</h2>
+<h3 id="61-offline-eval">6.1 Offline eval</h3>
+<p>Maintain a golden set of 200 real user prompts (anonymized) covering:<br />
+- Pricing questions<br />
+- Growth strategy<br />
+- Content ideation<br />
+- Portfolio triage<br />
+- Ambiguous / off-topic prompts</p>
+<p>Each new prompt template or model change runs through:<br />
+- <strong>BLEU / ROUGE</strong> — surface similarity vs curated gold answers<br />
+- <strong>LLM-as-judge</strong> — Claude Opus 4.7 scores helpfulness 1–5 with rubric<br />
+- <strong>Regression watchlist</strong> — 20 questions that MUST retain answer quality</p>
+<h3 id="62-online-eval">6.2 Online eval</h3>
+<ul>
+<li>Thumb-up/down on every assistant message (feature to add)</li>
+<li>Followed-by-action within 24h: if the user acts on advice the same<br />
+  conversation touched, consider the message "actionable" (heuristic<br />
+  correlator).</li>
+<li>Length distribution guard — protect against runaway 4k-char answers.</li>
+</ul>
+<h3 id="63-cost-latency-slos">6.3 Cost &amp; latency SLOs</h3>
+<ul>
+<li>Median cost / assistant message: ≤ $0.008</li>
+<li>P95 cost / assistant message: ≤ $0.03</li>
+<li>Median TTFT: ≤ 1200ms</li>
+<li>P95 total time: ≤ 8s</li>
+</ul>
+<p>Alert when any SLO breaches for 15 min sustained.</p>
+<hr />
+<h2 id="7-financial-business-metrics">7. Financial / Business Metrics</h2>
+<p>Live on a dedicated internal dashboard, not exposed in-app.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MRR</td>
+<td>Σ(active subscribers × tier price)</td>
+</tr>
+<tr>
+<td>ARPU</td>
+<td>MRR / active users</td>
+</tr>
+<tr>
+<td>Gross margin</td>
+<td>(Revenue − LLM cost − payment fees − hosting) / Revenue</td>
+</tr>
+<tr>
+<td>Payback period</td>
+<td>CAC / (ARPU × gross_margin)</td>
+</tr>
+<tr>
+<td>Churn (monthly)</td>
+<td>Downgrade or cancellation / total paying users</td>
+</tr>
+<tr>
+<td>NRR</td>
+<td>Retained + expansion - churn</td>
+</tr>
+<tr>
+<td>Free-tier LLM cost</td>
+<td>LLM $$ spent per non-paying MAU (protect via quotas)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-data-governance-privacy">8. Data Governance &amp; Privacy</h2>
+<ul>
+<li>No PII in analytics props. <code>user_id</code> is the opaque UUID; email/name<br />
+  never sent to the analytics ingestion path.</li>
+<li>Only aggregated, anonymized metrics leave the pod (dashboards read<br />
+  from <code>daily_metrics</code>).</li>
+<li>Users can request deletion → cascades across <code>users</code>, <code>assets</code>,<br />
+<code>chat_messages</code>, <code>connections</code>, <code>strategy_plans</code>, <code>checkout_sessions</code><br />
+  (soft-delete flag first, hard-delete after 30 days).</li>
+<li>LLM prompts are stored (<code>chat_messages</code>) — user can <code>/auth/purge-history</code><br />
+  at any time.</li>
+<li>Do not log full LLM outputs to third-party observability tools; log<br />
+  metadata only.</li>
+</ul>
+<hr />
+<h2 id="9-experiment-cadence">9. Experiment Cadence</h2>
+<table>
+<thead>
+<tr>
+<th>Cadence</th>
+<th>Activity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Weekly</td>
+<td>Read guardrails; review any auto-stopped experiments</td>
+</tr>
+<tr>
+<td>Bi-weekly</td>
+<td>Design review: 1 new experiment ships, 1 rolled out or killed</td>
+</tr>
+<tr>
+<td>Monthly</td>
+<td>North-star readout to leadership; recalibrate targets</td>
+</tr>
+<tr>
+<td>Quarterly</td>
+<td>Persona refresh; goldset refresh for LLM eval</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="10-runbooks">10. Runbooks</h2>
+<ul>
+<li><strong>Experiment auto-stopped</strong>: check guardrail dashboards → post-mortem<br />
+  in <code>/docs/experiments/YYYYMMDD_key.md</code> → revert variant.</li>
+<li><strong>Quota_hit spike</strong>: verify LLM cost is stable; if free-tier cap hits<br />
+  ≥ 25% of DAU, propose a limits update or upsell push.</li>
+<li><strong>Payment success drop</strong>: check <code>checkout_failed.reason</code> distribution;<br />
+  isolate provider; page on-call if drop &gt; 5pp in 15 min.</li>
+<li><strong>AI TTFT spike</strong>: check emergent LLM upstream latency; auto-fallback<br />
+  path to a shorter system prompt if TTFT &gt; 3s p50 for 10 min.</li>
+</ul>
+<hr />
+<h2 id="11-backlog">11. Backlog</h2>
+<ul>
+<li>Instrumentation wiring (event ingestion + dashboards) — in progress.</li>
+<li>Server-side experiments framework (<code>experiments.py</code>).</li>
+<li>LLM eval harness with automated goldset scoring.</li>
+<li>Cohort explorer for MRR &amp; retention.</li>
+<li>Ship the "insight actioned" thumb-up/down UI on Coach + Recommendations.</li>
+</ul>
+
+
+<hr>
+<p style="text-align:center; color: var(--mute); font-size: 11px; margin-top: 48px;">
+  CreatorOS · Engineering Design Documentation · Confidential<br>
+  Generated July 31, 2026
+</p>
+
+</body>
+</html>
