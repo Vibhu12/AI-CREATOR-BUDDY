@@ -12,9 +12,7 @@ import { track } from '@/src/services/analytics';
 const SESSION_ID = 'maya-default-session';
 
 const SUGGESTIONS = [
-  'Analyze my Q3 growth',
   'Where am I leaving money on the table?',
-  'Draft a launch plan for Ship It v2',
   'Critique my latest YouTube hook',
 ];
 

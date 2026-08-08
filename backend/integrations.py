@@ -26,6 +26,9 @@ from pydantic import BaseModel
 YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY", "").strip()
 STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY", "").strip()
 PAYPAL_CLIENT_ID = os.environ.get("PAYPAL_CLIENT_ID", "").strip()
+INSTAGRAM_API_VERSION = os.environ.get("INSTAGRAM_API_VERSION", "v25.0").strip()
+INSTAGRAM_USER_ID = os.environ.get("INSTAGRAM_USER_ID", "").strip()
+INSTAGRAM_LONG_LIVED_TOKEN = os.environ.get("INSTAGRAM_LONG_LIVED_TOKEN", "").strip()
 
 if STRIPE_API_KEY:
     stripe.api_key = STRIPE_API_KEY
@@ -305,30 +308,63 @@ def make_integrations_router(db, current_user):
         # Real API path (only when a real key is configured)
         if YOUTUBE_API_KEY:
             try:
-                async with httpx.AsyncClient(timeout=10) as client:
+                async with httpx.AsyncClient(timeout=12) as client:
                     r = await client.get(
                         "https://www.googleapis.com/youtube/v3/channels",
-                        params={"part": "snippet,statistics", "forHandle": clean, "key": YOUTUBE_API_KEY},
+                        params={"part": "snippet,contentDetails,statistics", "forHandle": clean, "key": YOUTUBE_API_KEY},
                     )
-                if r.status_code == 200:
+                    if r.status_code != 200:
+                        raise RuntimeError("channels.list failed")
                     data = r.json()
                     items = data.get("items") or []
-                    if items:
-                        ch = items[0]
-                        s = ch.get("statistics", {})
-                        sn = ch.get("snippet", {})
-                        return {
-                            "id": ch.get("id"),
-                            "handle": clean,
-                            "title": sn.get("title"),
-                            "description": sn.get("description"),
-                            "thumbnail": (sn.get("thumbnails", {}).get("high") or {}).get("url"),
-                            "subscribers": int(s.get("subscriberCount", 0)),
-                            "views": int(s.get("viewCount", 0)),
-                            "videos": int(s.get("videoCount", 0)),
-                            "published_at": sn.get("publishedAt"),
-                            "mocked": False,
-                        }
+                    if not items:
+                        raise RuntimeError("channel not found")
+                    ch = items[0]
+                    s = ch.get("statistics", {})
+                    sn = ch.get("snippet", {})
+                    uploads_pl = (ch.get("contentDetails", {}).get("relatedPlaylists") or {}).get("uploads")
+
+                    # Fetch recent videos (best-effort, non-fatal)
+                    recent_videos = []
+                    if uploads_pl:
+                        pr = await client.get(
+                            "https://www.googleapis.com/youtube/v3/playlistItems",
+                            params={"part": "snippet,contentDetails", "playlistId": uploads_pl,
+                                    "maxResults": 6, "key": YOUTUBE_API_KEY},
+                        )
+                        if pr.status_code == 200:
+                            pl_items = pr.json().get("items", [])
+                            vid_ids = [x["contentDetails"]["videoId"] for x in pl_items if x.get("contentDetails")]
+                            if vid_ids:
+                                vr = await client.get(
+                                    "https://www.googleapis.com/youtube/v3/videos",
+                                    params={"part": "statistics,snippet", "id": ",".join(vid_ids),
+                                            "key": YOUTUBE_API_KEY},
+                                )
+                                if vr.status_code == 200:
+                                    for v in vr.json().get("items", []):
+                                        vs = v.get("statistics", {})
+                                        vsn = v.get("snippet", {})
+                                        recent_videos.append({
+                                            "title": vsn.get("title"),
+                                            "views": int(vs.get("viewCount", 0)),
+                                            "likes": int(vs.get("likeCount", 0)),
+                                            "comments": int(vs.get("commentCount", 0)),
+                                            "published_at": vsn.get("publishedAt"),
+                                        })
+                    return {
+                        "id": ch.get("id"),
+                        "handle": clean,
+                        "title": sn.get("title"),
+                        "description": sn.get("description"),
+                        "thumbnail": (sn.get("thumbnails", {}).get("high") or {}).get("url"),
+                        "subscribers": int(s.get("subscriberCount", 0)),
+                        "views": int(s.get("viewCount", 0)),
+                        "videos": int(s.get("videoCount", 0)),
+                        "published_at": sn.get("publishedAt"),
+                        "recent_videos": recent_videos,
+                        "mocked": False,
+                    }
             except Exception:
                 pass  # fall through to mock
 
@@ -344,6 +380,61 @@ def make_integrations_router(db, current_user):
         if not target:
             raise HTTPException(404, "No Instagram account connected. Connect one first.")
         clean = target.lstrip("@")
+
+        # Real API path — requires INSTAGRAM_USER_ID + INSTAGRAM_LONG_LIVED_TOKEN.
+        # Note: the Graph API only supports the token owner's own business account
+        # (cannot look up arbitrary handles). Handle is preserved for UI/labeling.
+        if INSTAGRAM_USER_ID and INSTAGRAM_LONG_LIVED_TOKEN:
+            try:
+                base = f"https://graph.instagram.com/{INSTAGRAM_API_VERSION}"
+                async with httpx.AsyncClient(timeout=12) as client:
+                    pr = await client.get(
+                        f"{base}/{INSTAGRAM_USER_ID}",
+                        params={
+                            "fields": "id,username,name,biography,profile_picture_url,followers_count,follows_count,media_count",
+                            "access_token": INSTAGRAM_LONG_LIVED_TOKEN,
+                        },
+                    )
+                    if pr.status_code != 200:
+                        raise RuntimeError("profile fetch failed")
+                    prof = pr.json()
+
+                    mr = await client.get(
+                        f"{base}/{INSTAGRAM_USER_ID}/media",
+                        params={
+                            "fields": "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count",
+                            "limit": 6,
+                            "access_token": INSTAGRAM_LONG_LIVED_TOKEN,
+                        },
+                    )
+                    media_items = mr.json().get("data", []) if mr.status_code == 200 else []
+
+                    recent_reels = [{
+                        "caption": (m.get("caption") or "")[:200],
+                        "views": m.get("like_count", 0) * 6,  # IG Basic API does not expose views
+                        "likes": m.get("like_count", 0),
+                        "comments": m.get("comments_count", 0),
+                        "posted_at": m.get("timestamp"),
+                        "permalink": m.get("permalink"),
+                    } for m in media_items]
+
+                    followers = int(prof.get("followers_count", 0))
+                    posts = int(prof.get("media_count", 0))
+                    return {
+                        "id": prof.get("id"),
+                        "handle": prof.get("username") or clean,
+                        "name": prof.get("name") or clean,
+                        "bio": prof.get("biography"),
+                        "profile_picture": prof.get("profile_picture_url"),
+                        "followers": followers,
+                        "following": int(prof.get("follows_count", 0)),
+                        "posts": posts,
+                        "recent_reels": recent_reels,
+                        "mocked": False,
+                    }
+            except Exception:
+                pass  # fall through to mock
+
         return _mock_instagram(clean)
 
     @router.get("/stripe/status")

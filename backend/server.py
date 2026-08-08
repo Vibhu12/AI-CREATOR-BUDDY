@@ -137,34 +137,18 @@ STARTER_ASSETS: List[dict] = [
     {"name": "Maya Builds — YouTube", "platform": "youtube", "category": "Long-form video",
      "revenue_mtd": 18420.50, "profit_mtd": 12140.00, "followers": 184500, "ai_score": 87,
      "trend": [62, 68, 71, 74, 78, 82, 87]},
-    {"name": "@mayabuilds — Instagram", "platform": "instagram", "category": "Short-form + carousels",
-     "revenue_mtd": 6740.00, "profit_mtd": 5210.00, "followers": 92300, "ai_score": 74,
-     "trend": [55, 58, 62, 66, 68, 71, 74]},
     {"name": "Ship It — Course", "platform": "course", "category": "Cohort course",
      "revenue_mtd": 24300.00, "profit_mtd": 19100.00, "followers": 1420, "ai_score": 91,
      "trend": [70, 74, 79, 83, 86, 89, 91]},
     {"name": "The Build Letter — Newsletter", "platform": "newsletter", "category": "Weekly essay",
      "revenue_mtd": 3120.00, "profit_mtd": 2710.00, "followers": 22800, "ai_score": 68,
      "trend": [60, 62, 63, 64, 66, 67, 68]},
-    {"name": "TikTok — @maya.builds", "platform": "tiktok", "category": "Short-form",
-     "revenue_mtd": 1240.00, "profit_mtd": 920.00, "followers": 41700, "ai_score": 58,
-     "trend": [48, 51, 55, 56, 57, 58, 58]},
-    {"name": "Founder Mode — Podcast", "platform": "podcast", "category": "Interview show",
-     "revenue_mtd": 2840.00, "profit_mtd": 2110.00, "followers": 11200, "ai_score": 72,
-     "trend": [62, 64, 66, 68, 70, 71, 72]},
-    {"name": "Amazon + ConvertKit Affiliate", "platform": "affiliate", "category": "Tool recommendations",
-     "revenue_mtd": 4180.00, "profit_mtd": 4180.00, "followers": 0, "ai_score": 79,
-     "trend": [58, 62, 66, 70, 74, 76, 79]},
-    {"name": "Notion Templates — Gumroad", "platform": "digital", "category": "Digital downloads",
-     "revenue_mtd": 5620.00, "profit_mtd": 5340.00, "followers": 3840, "ai_score": 82,
-     "trend": [64, 68, 72, 75, 78, 80, 82]},
 ]
 
 STARTER_GOALS: List[dict] = [
     {"title": "$80K MRR by Q4", "kind": "revenue", "target": 80000, "current": 56660, "deadline": "2026-12-31"},
     {"title": "250K YouTube subs", "kind": "subscribers", "target": 250000, "current": 184500, "deadline": "2026-09-30"},
     {"title": "Launch Ship It v2", "kind": "launch", "target": 1, "current": 0.62, "deadline": "2026-08-15"},
-    {"title": "Ship 12 videos this quarter", "kind": "content", "target": 12, "current": 7, "deadline": "2026-08-31"},
 ]
 
 STARTER_CONTENT: List[dict] = [
@@ -174,12 +158,9 @@ STARTER_CONTENT: List[dict] = [
     {"platform": "youtube", "title": "Why creators are leaving Substack",
      "views": 184_300, "likes": 12_100, "comments": 920, "ctr": 8.4, "watch_pct": 41.2,
      "virality": 71, "ai_score": 76, "_offset_days": 11},
-    {"platform": "instagram", "title": "The 5-second hook that 10x'd my reach",
-     "views": 96_500, "likes": 7_200, "comments": 410, "ctr": 6.1, "watch_pct": 58.3,
-     "virality": 64, "ai_score": 81, "_offset_days": 2},
-    {"platform": "tiktok", "title": "POV: you finally ship the thing",
-     "views": 51_400, "likes": 4_180, "comments": 290, "ctr": 4.2, "watch_pct": 62.1,
-     "virality": 48, "ai_score": 62, "_offset_days": 1},
+    {"platform": "newsletter", "title": "The Build Letter #47 — Ship It v2 teaser",
+     "views": 22_800, "likes": 1_640, "comments": 82, "ctr": 48.1, "watch_pct": 62.0,
+     "virality": 54, "ai_score": 79, "_offset_days": 2},
 ]
 
 STARTER_RECS: List[dict] = [
@@ -191,26 +172,10 @@ STARTER_RECS: List[dict] = [
      "summary": "Conversion held at $499 for 3 cohorts. Demand signal + waitlist size suggests $589 is the sweet spot.",
      "priority": "high", "impact": 8, "effort": 2, "confidence": 84,
      "category": "Pricing", "expected_roi": "+$11.2k / cohort"},
-    {"title": "Cut Instagram Reels production by 40%",
-     "summary": "Reels drove 3% of revenue but consumed 22% of editing hours. Reallocate to YouTube Shorts repurposing.",
-     "priority": "medium", "impact": 6, "effort": 3, "confidence": 78,
-     "category": "Operations", "expected_roi": "+9 hrs/week"},
     {"title": "Launch newsletter sponsor tier",
      "summary": "22.8k engaged readers, 48% open rate. Conservative CPM benchmarks suggest $1.8k/issue floor.",
      "priority": "medium", "impact": 7, "effort": 4, "confidence": 81,
      "category": "Monetization", "expected_roi": "+$7.2k MTD"},
-    {"title": "Bundle Notion templates into a $99 pack",
-     "summary": "Your 4 top-selling templates convert individually. A bundled pack at $99 would lift AOV 3.2× with the same traffic.",
-     "priority": "high", "impact": 7, "effort": 2, "confidence": 86,
-     "category": "Monetization", "expected_roi": "+$4.8k MTD"},
-    {"title": "Diversify affiliate portfolio",
-     "summary": "82% of affiliate revenue comes from Amazon. One policy change kills the channel — add 3 SaaS affiliates with 30% recurring.",
-     "priority": "medium", "impact": 8, "effort": 4, "confidence": 74,
-     "category": "Risk", "expected_roi": "De-risks $4.2k/mo"},
-    {"title": "Repurpose podcast into YouTube shorts",
-     "summary": "Founder Mode has 11.2k engaged listeners but only 8% of episodes get clipped for social. Automate this loop.",
-     "priority": "low", "impact": 5, "effort": 6, "confidence": 71,
-     "category": "Content", "expected_roi": "+$1.9k MTD"},
 ]
 
 
@@ -224,15 +189,6 @@ STARTER_NOTIFICATIONS: List[dict] = [
     {"kind": "insight", "title": "AI Coach flagged pricing gap",
      "body": "Claude analyzed 3 cohorts — recommends raising Ship It to $589. Est. impact: +$11.2k per cohort.",
      "_offset_hours": 26, "priority": "high"},
-    {"kind": "warning", "title": "Instagram engagement dropped 12%",
-     "body": "Last 6 posts averaged 4.8% engagement vs 5.5% baseline. Hook analysis in Coach.",
-     "_offset_hours": 32, "priority": "medium"},
-    {"kind": "revenue", "title": "Stripe payout: $8,420.50",
-     "body": "Ship It cohort #4 settled. Next payout scheduled Friday.",
-     "_offset_hours": 40, "priority": "low"},
-    {"kind": "streak", "title": "3-week posting streak on YouTube",
-     "body": "Consistency score jumped +6 points to 88. Keep it going.",
-     "_offset_hours": 68, "priority": "low"},
 ]
 
 
