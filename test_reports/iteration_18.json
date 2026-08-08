@@ -1,0 +1,28 @@
+{
+  "summary": "Verified bug-fix PR for 2 production APK bugs. (1) Auth deep-link route: navigated directly to /auth with no session — confirmed it renders the new 'Signing you in…' spinner screen (NOT the old 'Unmatched Route' error), and correctly auto-redirects to /login within ~4s (matched expected grace-window behavior in auth.tsx). (2) Gate logic: _layout.tsx now treats segments[0]==='auth' same as 'login' for inAuth — confirmed no infinite loop / stuck screen. (3) AI Coach chat regression: seeded a fresh test user+session in Mongo (user_qa_test / qa-test-token-123), injected token into localStorage, sent a live message from the coach.tsx UI — got a real, non-empty Claude Sonnet 4.5 streamed response (855 chars) rendered into msg-assistant bubble; no empty bubble, no error. This confirms removing .env exclusion lines from /app/.gitignore did NOT break anything locally (backend still reads EMERGENT_LLM_KEY correctly in this preview env). (4) General regression: Home/Portfolio/Finance/Profile tabs all load correctly with seeded demo data (Business Health 87, 3 portfolio assets, financial charts, active goals) — no visual or data regressions. (5) Backend: ran full pytest suite (107 tests across 6 files including AI coach streaming, security fixes, PayPal, goals/asset/finance, connections/checkout) — 107/107 passed (100%).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/pytest/iter18_full.xml"
+  ],
+  "action_items": [
+    "Note (not testable in this preview env, per agent context): the actual production .env-stripping issue can only be confirmed fixed after the user redeploys/republishes the production APK build. All code-level fixes (auth.tsx route + Gate logic + .gitignore) are verified correct in this preview environment."
+  ],
+  "critical_code_review_comments": [
+    "auth.tsx correctly guards against double-navigation with navigatedRef and has a sane 4s grace-window fallback to /login if the Linking-based session exchange doesn't complete — good defensive design for the hot-link/cold-link race condition.",
+    "_layout.tsx Gate fix (inAuth includes 'auth') is minimal and correctly scoped — does not alter the onboarding or tabs redirect branches.",
+    ".gitignore change (removing 3 .env exclusion lines) is a config-only change; confirmed no other env-related regressions were introduced in this preview (backend .env still loaded via load_dotenv without issue)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (107/107)", "frontend": "100% (auth route, AI chat, 4 tab screens all verified working)"},
+  "seed_data_creation": "Seeded one throwaway user (user_qa_test / t_qa@example.com) with onboarding_complete=True and starter dataset via server.seed_user_starter(), plus a 1-day session token 'qa-test-token-123' directly in MongoDB user_sessions collection for frontend E2E testing.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Both reported production bugs are fixed and verified in this preview env: /auth route no longer shows Unmatched Route, and AI Coach streaming works end-to-end with real Claude Sonnet 4.5 responses. The only unverifiable piece is the actual production APK .env packaging (requires a real redeploy by the user, outside preview env scope). No new issues found; no regressions to login, tabs, or existing screens.",
+  "rca_of_issue": "Confirmed both root-cause fixes as described by main agent: (1) auth.tsx now exists as a matching Expo Router screen for the 'frontend://auth' deep link, preventing 'Unmatched Route'; it shows a spinner and defers to AuthContext's session exchange, with a 4s failsafe redirect to /login. (2) _layout.tsx Gate's inAuth check now includes 'auth' alongside 'login', fixing the stale redirect-logic bug. Both changes verified working via direct navigation testing."
+}

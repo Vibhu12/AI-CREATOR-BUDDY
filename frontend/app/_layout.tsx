@@ -20,7 +20,7 @@ function Gate() {
   useEffect(() => {
     if (loading) return;
     const first = segments[0] as string | undefined;
-    const inAuth = first === 'login';
+    const inAuth = first === 'login' || first === 'auth';
     const inOnboarding = first === 'onboarding';
     if (!user) {
       if (!inAuth) router.replace('/login');
