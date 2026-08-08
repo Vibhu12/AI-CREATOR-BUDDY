@@ -1,0 +1,30 @@
+{
+  "summary": "AI Coach auth-header fix VERIFIED end-to-end. Backend: 7/7 pytest passed on /api/ai/chat — POST returns 401 without Bearer token (missing + garbage token), returns 200 SSE stream with valid Bearer token and streams real Claude Sonnet 4.5 content from Emergent LLM key (assistant text ~500+ chars, `done` frame received, no `error` frame). GET /api/ai/chat/history and POST /api/ai/chat/reset both work with auth (200) and 401 without. Frontend: injected valid session token into localStorage['creatoros_session_token'], navigated to /coach, tapped 'Critique my latest YouTube hook' chip — the streaming fetch attached the Authorization header correctly and a 507-char Claude response streamed into the msg-assistant bubble ('**Send me the hook.** I'll rate it on: 1. Clarity... 5. Relevance to avatar...'). No '⚠ AI service unavailable', no 'Session expired', no network error. The fix on /app/frontend/app/(tabs)/coach.tsx lines 54-64 (getToken() + manual Authorization header on streaming fetch) is working as designed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ai_coach_streaming.py",
+    "/app/test_reports/pytest/iter17_ai_coach.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "coach.tsx correctly reads token via getToken() and only appends the Authorization header when token is present — matches the wrapper behavior of authFetch() in api.ts.",
+    "Streaming fetch uses api.chatUrl() which resolves via EXPO_PUBLIC_BACKEND_URL (env-driven, no hardcoded host) — consistent with rest of the app.",
+    "Backend /api/ai/chat is Depends(current_user) gated and additionally enforces message length + free-tier daily quota + burst rate limit before starting the stream — good defensive layering.",
+    "SSE frames include `data: {done: true}` sentinel; frontend loop correctly parses per-frame JSON and appends deltas incrementally."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_ai_coach_streaming.py (new: 7 tests covering auth gate + streaming happy-path + history/reset regression)"
+  ],
+  "success_rate": {"backend": "100% (7/7 on AI Coach suite)", "frontend": "100% (streaming assistant response received on tab)"},
+  "seed_data_creation": "Backend tests reuse per-session AUDIT_TOKEN + AUDIT_UID from conftest.py (unchanged from iter_16). Frontend E2E: one throwaway session inserted into user_sessions with 2h TTL (user_e2e_ai_coach, token e2e-ai-coach-*); expires naturally.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "AI Coach streaming + auth-header fix confirmed. The regression test file test_ai_coach_streaming.py can be re-used to guard against re-introduction of the 401-because-header-missing bug. Full backend suite was NOT re-run this iteration (only the AI Coach slice was targeted per the review request); if you need to verify no wider regressions, run `pytest /app/backend/tests/ -v` to hit all ~100 tests including iter_16 security verifiers.",
+  "rca_of_issue": "Root cause: coach.tsx streaming used raw fetch() to `${BASE}/api/ai/chat` and did not attach the Authorization header, so backend Depends(current_user) rejected with 401 which the client rendered as '⚠ AI service unavailable.'. Fix: import getToken() from api.ts, read the persisted session token (localStorage on web / SecureStore on native), and manually add `Authorization: Bearer <token>` to the streaming fetch headers. Verified: backend now sees the header, resolves the user, and streams Claude Sonnet 4.5 SSE frames; frontend renders them into the assistant bubble."
+}
