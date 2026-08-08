@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radius } from '@/src/theme/tokens';
-import { api } from '@/src/services/api';
+import { api, getToken } from '@/src/services/api';
 import { track } from '@/src/services/analytics';
 
 const SESSION_ID = 'maya-default-session';
@@ -53,15 +53,22 @@ export default function Coach() {
     let firstToken = 0;
 
     try {
+      const token = await getToken();
+      const authHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+      };
+      if (token) authHeaders['Authorization'] = `Bearer ${token}`;
       const resp = await fetch(api.chatUrl(), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
+        headers: authHeaders,
         body: JSON.stringify({ session_id: SESSION_ID, message: text }),
       });
 
       // Backend can return non-200 (402 quota / 413 too long / 429 burst)
       if (!resp.ok) {
-        const msg = resp.status === 402 ? 'Free tier limit — upgrade for unlimited AI coach.'
+        const msg = resp.status === 401 ? 'Session expired. Please log in again.'
+                  : resp.status === 402 ? 'Free tier limit — upgrade for unlimited AI coach.'
                   : resp.status === 413 ? 'Message too long. Please shorten.'
                   : resp.status === 429 ? 'Slow down — try again in a moment.'
                   : 'AI service unavailable.';
