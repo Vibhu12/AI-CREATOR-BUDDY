@@ -63,6 +63,12 @@ EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
 async def lifespan(app_: FastAPI):
     # Startup
     await ensure_indexes(db)
+    # SEC-002: shout loudly if DEMO_MODE is on — must be false in production
+    if os.environ.get("DEMO_MODE", "true").strip().lower() == "true":
+        log.warning(
+            "⚠  DEMO_MODE is ON — mock tier upgrades are enabled. "
+            "This MUST be set to false in production (backend/.env → DEMO_MODE=false)."
+        )
     yield
     # Shutdown
     client.close()
@@ -870,7 +876,7 @@ async def chat_reset(session_id: str, user: dict = Depends(current_user)):
 api.include_router(auth_router)
 api.include_router(make_analytics_router(db, current_user))
 api.include_router(make_integrations_router(db, current_user))
-api.include_router(make_competitors_router())
+api.include_router(make_competitors_router(current_user))
 api.include_router(make_strategy_router(db, EMERGENT_LLM_KEY, current_user))
 api.include_router(make_billing_router(db, current_user))
 app.include_router(api)

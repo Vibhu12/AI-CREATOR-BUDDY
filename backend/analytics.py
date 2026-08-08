@@ -85,6 +85,19 @@ class AnalyticsBatch(BaseModel):
 
 
 # --- Helpers --------------------------------------------------------------
+def _scrub_value(v: Any) -> Any:
+    """Recursively strip PII keys from nested dicts / lists."""
+    if isinstance(v, dict):
+        return {
+            k: _scrub_value(val)
+            for k, val in v.items()
+            if isinstance(k, str) and k.lower() not in _PII_KEYS
+        }
+    if isinstance(v, list):
+        return [_scrub_value(x) for x in v[:32]]  # cap array length
+    return v
+
+
 def _scrub_props(props: dict[str, Any] | None) -> dict[str, Any]:
     if not props:
         return {}
@@ -92,6 +105,7 @@ def _scrub_props(props: dict[str, Any] | None) -> dict[str, Any]:
     for k, v in list(props.items())[:MAX_PROPS_KEYS]:
         if not isinstance(k, str) or k.lower() in _PII_KEYS:
             continue
+        v = _scrub_value(v)  # SEC hardening: recurse into nested PII
         # Coerce non-JSON-serializable values to str
         try:
             json.dumps(v)

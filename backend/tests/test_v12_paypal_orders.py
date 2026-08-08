@@ -12,7 +12,7 @@ import uuid
 import requests
 
 BASE = os.environ["EXPO_PUBLIC_BACKEND_URL"].rstrip("/")
-TOKEN = "audit-token"
+from conftest import AUDIT_TOKEN as TOKEN
 H = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
 NOAUTH = {"Content-Type": "application/json"}
 

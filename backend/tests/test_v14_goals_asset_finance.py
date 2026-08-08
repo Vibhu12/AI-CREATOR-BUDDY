@@ -20,8 +20,7 @@ from pymongo import MongoClient
 
 BASE = os.environ["EXPO_PUBLIC_BACKEND_URL"].rstrip("/")
 
-AUDIT_TOKEN = "audit-token"
-AUDIT_UID = "user_audit"
+from conftest import AUDIT_TOKEN, AUDIT_UID
 H_AUDIT = {"Authorization": f"Bearer {AUDIT_TOKEN}", "Content-Type": "application/json"}
 
 # Second user for cross-user isolation tests

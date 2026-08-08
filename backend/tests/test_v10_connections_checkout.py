@@ -10,7 +10,7 @@ import uuid
 import requests
 
 BASE = os.environ["EXPO_PUBLIC_BACKEND_URL"].rstrip("/")
-TOKEN = "audit-token"
+from conftest import AUDIT_TOKEN as TOKEN
 H = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
 
 
@@ -250,9 +250,13 @@ def test_regression_portfolio():
     assert r.status_code == 200
 
 
-def test_regression_competitors_public():
+def test_regression_competitors_now_auth_gated():
+    """SEC hardening (iter_15): competitors moved behind auth. Was public."""
     r = requests.get(f"{BASE}/api/competitors/radar", timeout=15)
-    assert r.status_code == 200
+    assert r.status_code == 401
+    # Authed request still works
+    r2 = _get("/api/competitors/radar")
+    assert r2.status_code == 200
 
 
 def test_regression_strategy_list():

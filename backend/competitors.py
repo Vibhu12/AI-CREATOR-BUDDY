@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 # Maya's normalized stats (composite across her assets)
 MAYA = {
@@ -151,10 +151,12 @@ def _norm(value: float, max_value: float) -> float:
     return round(min(100, (value / max_value) * 100), 1)
 
 
-def make_competitors_router():
+def make_competitors_router(current_user=None):
     router = APIRouter(prefix="/competitors", tags=["competitors"])
+    # SEC hardening: gate all competitor endpoints behind auth.
+    auth_dep = [Depends(current_user)] if current_user else []
 
-    @router.get("")
+    @router.get("", dependencies=auth_dep)
     async def list_competitors() -> dict[str, Any]:
         return {
             "you": MAYA,
@@ -164,7 +166,7 @@ def make_competitors_router():
             "competitors": COMPETITORS,
         }
 
-    @router.get("/radar")
+    @router.get("/radar", dependencies=auth_dep)
     async def radar() -> dict[str, Any]:
         """Normalized 0-100 radar values across 6 qualitative dimensions."""
         keys = ["consistency", "content_quality", "monetization", "brand_strength", "engagement_rate"]
@@ -185,7 +187,7 @@ def make_competitors_router():
             })
         return {"dimensions": rows}
 
-    @router.get("/gaps")
+    @router.get("/gaps", dependencies=auth_dep)
     async def gaps() -> dict[str, Any]:
         """Where Maya trails the top-1% — biggest opportunity gaps first."""
         out = []
