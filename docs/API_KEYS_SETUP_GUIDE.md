@@ -163,8 +163,11 @@ password to complete a test checkout — no real money changes hands.
    all upgrades to go through PayPal (or Stripe).
 5. Restart backend.
 
-⚠️ **Never commit these secrets to git.** They are already `.gitignore`d as
-part of the standard `.env` pattern.
+⚠️ **Never commit these secrets to a public repo.** Note: `/app/.gitignore`
+no longer excludes `.env` files (this exclusion was removed so production
+deploys correctly receive required env vars like `EMERGENT_LLM_KEY`). If you
+push this repo to GitHub, treat your repo as containing live secrets and use
+a **private** repository.
 
 ---
 

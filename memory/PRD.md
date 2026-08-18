@@ -25,3 +25,10 @@ All data endpoints (`/api/dashboard`, `/api/portfolio`, `/api/finance`, `/api/go
 
 ## Smart business enhancement
 The **starter dataset** is a deliberate acquisition play — new sign-ups get a fully-populated dashboard on day zero. That gives them dopamine before they've done any work, dramatically increasing D1/D7 retention vs the typical "empty state, please connect X integrations" onboarding used by every other SaaS in this category.
+
+## Next steps reference
+See `/app/docs/NEXT_STEPS.md` for the up-to-date backlog: live-data activation
+requirements (YouTube/Instagram/PayPal/Stripe), payment gateway status, the
+progress-tracking feature backlog (trend charts, goal ETA/pace, streaks,
+weekly recap, milestone celebration), and other pending UI/onboarding/export
+tasks. Check that file at the start of any new session before planning work.
