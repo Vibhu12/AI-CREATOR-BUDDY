@@ -89,3 +89,6 @@ credentials.json
 # "How this was built" section for the transparent explanation of why
 # commits are authored by the AI builder tooling.
 .gitconfig
+.env
+.env.*
+*.env
