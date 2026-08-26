@@ -144,6 +144,12 @@ including the security pass at iteration 13.
 
 ## How this was built
 
+Every commit in this repo is authored by `emergent-agent-e1`. That's not
+an oversight and I haven't rewritten history to hide it — it's the
+direct result of how I built this, described below, and I'd rather you
+know that going in than find it in `git log` and wonder what else wasn't
+mentioned.
+
 I built CreatorOS using Emergent, an AI app builder, across 18
 iterations. That was deliberate: my constraint was time, not coding
 ability, and directing the build let me spend my hours on decisions
@@ -151,7 +157,9 @@ rather than typing.
 
 The product framing, tier and pricing model, analytics event schema,
 empty-state strategy, and the security review at iteration 13 are mine.
-The commit history reflects the tooling.
+The commit history reflects the tooling, not the thinking — every
+architectural call, every "no, that's wrong" during review, and the bug
+below were mine to catch.
 
 The most useful thing I learned came from a bug the tooling could not
 have caught. My AI Coach personalises correctly, reading the user's

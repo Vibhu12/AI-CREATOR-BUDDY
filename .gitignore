@@ -83,6 +83,9 @@ android-sdk/
 credentials.json
 *.key
 .credentials
-.env
-.env.*
-*.env
+
+# Local git identity file — never commit this; it's the AI builder's
+# platform-level commit identity, not part of the app. See README's
+# "How this was built" section for the transparent explanation of why
+# commits are authored by the AI builder tooling.
+.gitconfig
