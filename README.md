@@ -145,10 +145,10 @@ including the security pass at iteration 13.
 ## How this was built
 
 Every commit in this repo is authored by `emergent-agent-e1`. That's not
-an oversight and I haven't rewritten history to hide it — it's the
-direct result of how I built this, described below, and I'd rather you
-know that going in than find it in `git log` and wonder what else wasn't
-mentioned.
+an oversight and I haven't rewritten history to hide it — it is a direct
+consequence of the build process described below, and I would rather
+disclose it upfront than have it discovered in `git log` without
+context.
 
 I built CreatorOS using Emergent, an AI app builder, across 18
 iterations. That was deliberate: my constraint was time, not coding
