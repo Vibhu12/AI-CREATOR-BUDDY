@@ -39,7 +39,7 @@ class TaskToggle(BaseModel):
     checked: bool
 
 
-STRATEGY_SYSTEM = (
+STRATEGY_SCHEMA = (
     "You are CreatorOS Strategy Engine. You generate operator-grade roadmaps for a creator's business. "
     "Always respond with a single VALID JSON object — no prose, no markdown fences. "
     "Schema strictly:\n"
@@ -55,10 +55,40 @@ STRATEGY_SYSTEM = (
     "  ] (one phase per 30-day block, sized to horizon_days),\n"
     '  "leading_indicators": [str, str, str]\n'
     "}\n"
-    "Context — the user is Maya, running a YouTube channel (184k subs), Ship It course "
-    "($24k/cohort, ~75% margin), newsletter (22.8k), IG (92k), podcast, TikTok. Total revenue ~$56k MTD. "
-    "Be specific. Quantify targets. Tie each phase to a measurable outcome."
 )
+
+STRATEGY_CONTEXT_TEMPLATE = (
+    "Context — the user is {name}, with these current business assets:\n{portfolio}\n"
+    "Total revenue MTD: ${revenue:,.0f}. Profit MTD: ${profit:,.0f} (~{margin:.0f}% margin).\n"
+    "Be specific. Quantify targets using THIS user's real numbers above — never invent a different "
+    "business. Targets must scale proportionately to their current revenue (e.g. do not suggest a "
+    "$56k/mo creator's roadmap for someone at $500/mo, or vice versa). Tie each phase to a measurable outcome."
+)
+
+
+async def _build_strategy_context(db, user: dict) -> str:
+    """Builds a per-user context block for the Strategy Engine — mirrors the
+    AI Coach's `_build_system_prompt` in server.py so plans are grounded in
+    THIS user's real portfolio, not a fixed demo persona."""
+    assets = await db.assets.find({"user_id": user["user_id"]}, {"_id": 0}).to_list(100)
+    if not assets:
+        portfolio = "  (no assets yet — recommend how to launch the first one)"
+    else:
+        portfolio = "\n".join(
+            f"  - {a.get('name', 'Untitled')} ({a.get('platform', 'unknown')}) — "
+            f"{a.get('followers', 0):,} followers, ${a.get('revenue_mtd', 0):,.0f} MTD"
+            for a in assets
+        )
+    rev = sum(a.get("revenue_mtd", 0) for a in assets)
+    prof = sum(a.get("profit_mtd", 0) for a in assets)
+    margin = (prof / rev * 100) if rev else 0
+    return STRATEGY_SCHEMA + STRATEGY_CONTEXT_TEMPLATE.format(
+        name=user.get("name", "the creator"),
+        portfolio=portfolio,
+        revenue=rev,
+        profit=prof,
+        margin=margin,
+    )
 
 
 def make_strategy_router(db, api_key: str, current_user):
@@ -99,10 +129,11 @@ def make_strategy_router(db, api_key: str, current_user):
             + "Return JSON only matching the schema."
         )
 
+        system_prompt = await _build_strategy_context(db, user)
         chat = LlmChat(
             api_key=api_key,
             session_id=f"strategy-{uuid.uuid4().hex[:8]}",
-            system_message=STRATEGY_SYSTEM,
+            system_message=system_prompt,
         ).with_model("anthropic", "claude-sonnet-4-5-20250929")
 
         chunks: list[str] = []

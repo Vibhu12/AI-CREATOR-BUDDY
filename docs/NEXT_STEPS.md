@@ -83,6 +83,27 @@ User was asked to pick one/more/all — awaiting confirmation before starting.
 
 ---
 
+## 6. Resolved this session (Strategy Planner fix + eval suite + README)
+
+- **Strategy Planner persona-leak bug (found + fixed)**: the AI system
+  prompt hardcoded a fixed demo persona ("Maya", 184k subs, $56k MTD)
+  for every user regardless of who was signed in. Fixed via
+  `_build_strategy_context(db, user)` in `backend/strategy.py`, mirroring
+  the AI Coach's existing per-user grounding pattern. Verified via new
+  eval suite + testing_agent (plans now reference the real signed-in
+  user's actual portfolio and scale proportionately to their revenue).
+- **New eval suite** at `backend/evals/` (`eval_groundedness.py`,
+  `eval_scale_appropriateness.py`) — checks AI output *quality*, not just
+  schema validity. Run on-demand: `cd backend && pytest evals/ -v -s`
+  (makes real Claude calls, not part of the main pytest gate).
+- **README.md** rewritten with real project details, `docs/build-log/`
+  (18-iteration human-readable history), `docs/images/dashboard.png`,
+  and `backend/.env.example` added.
+- Still pending: a real walkthrough video (needs to be recorded by the
+  user — no video recording/hosting tool available to the agent) and a
+  permanent production demo URL (currently linking the temporary preview
+  URL until the app is Published).
+
 ## 5. Deployment notes (fixed this session, keep in mind)
 
 - Root `/app/.gitignore` previously excluded `.env`/`.env.*`/`*.env`, which

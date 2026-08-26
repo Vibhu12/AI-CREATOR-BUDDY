@@ -64,9 +64,12 @@ Generated June 2026 · Reflects code state as of iteration 14.
 ## 🔗 Related resources
 
 - `/app/memory/PRD.md` — Original Product Requirements Document
+- `/app/docs/NEXT_STEPS.md` — Live backlog: integration activation, payment gateway status, feature roadmap
+- `/app/docs/build-log/README.md` — Human-readable iteration-by-iteration build history (18 iterations)
 - `/app/memory/test_credentials.md` — Test-user credentials
-- `/app/test_reports/iteration_*.json` — Historical test agent reports
-- `/app/backend/tests/` — Backend pytest suites (v10, v12, v13, v14 — 87 tests, 100% pass)
+- `/app/test_reports/iteration_*.json` — Historical test agent reports (raw)
+- `/app/backend/tests/` — Backend pytest suites (107 tests, 100% pass)
+- `/app/backend/evals/` — AI-output quality evals (groundedness + scale-appropriateness), run on-demand
 
 ## 🔧 Local links
 

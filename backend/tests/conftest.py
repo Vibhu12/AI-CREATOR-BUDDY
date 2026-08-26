@@ -23,6 +23,9 @@ from pymongo import MongoClient
 
 # Load backend/.env so MONGO_URL / DB_NAME are picked up automatically.
 load_dotenv(os.path.join(os.path.dirname(__file__), os.pardir, ".env"))
+# EXPO_PUBLIC_BACKEND_URL lives in the frontend .env — load it too so tests
+# don't require a manual `export` before running.
+load_dotenv(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, "frontend", ".env"))
 
 MONGO_URL = os.environ.get("MONGO_URL")
 DB_NAME = os.environ.get("DB_NAME")
