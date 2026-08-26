@@ -38,7 +38,7 @@ log = logging.getLogger("billing")
 # capture on mocked orders, legacy /upgrade) can flip the user's tier without
 # a real charge. When "false" (production), these paths are rejected — only
 # a verified real-provider webhook / capture can grant paid tiers.
-DEMO_MODE = os.environ.get("DEMO_MODE", "true").strip().lower() == "true"
+DEMO_MODE = os.environ.get("DEMO_MODE", "false").strip().lower() == "true"
 
 
 def _reject_mock_upgrade():

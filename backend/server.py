@@ -63,8 +63,9 @@ EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
 async def lifespan(app_: FastAPI):
     # Startup
     await ensure_indexes(db)
-    # SEC-002: shout loudly if DEMO_MODE is on — must be false in production
-    if os.environ.get("DEMO_MODE", "true").strip().lower() == "true":
+    # SEC-002: shout loudly if DEMO_MODE is on — must be false in production.
+    # Secure by default: absent/unset DEMO_MODE now means OFF, not ON.
+    if os.environ.get("DEMO_MODE", "false").strip().lower() == "true":
         log.warning(
             "⚠  DEMO_MODE is ON — mock tier upgrades are enabled. "
             "This MUST be set to false in production (backend/.env → DEMO_MODE=false)."
@@ -692,7 +693,7 @@ async def onboarding_status(user: dict = Depends(current_user)):
 async def reseed_starter(user: dict = Depends(current_user)):
     """Reload the Maya starter dataset for the current user. Wipes any existing
     user-scoped data and reseeds from the template. DEMO_MODE only."""
-    if os.environ.get("DEMO_MODE", "true").strip().lower() != "true":
+    if os.environ.get("DEMO_MODE", "false").strip().lower() != "true":
         raise HTTPException(403, "Endpoint disabled in production")
     uid = user["user_id"]
     for coll in ("assets", "goals", "content", "recommendations",
@@ -837,10 +838,17 @@ api.include_router(make_strategy_router(db, EMERGENT_LLM_KEY, current_user))
 api.include_router(make_billing_router(db, current_user))
 app.include_router(api)
 
+ALLOWED_ORIGINS = [
+    o.strip() for o in os.environ.get(
+        "ALLOWED_ORIGINS", "http://localhost:8081,http://localhost:19006"
+    ).split(",")
+    if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_credentials=False,          # auth is Bearer header, not cookies
+    allow_origins=ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )

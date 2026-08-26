@@ -83,6 +83,33 @@ User was asked to pick one/more/all — awaiting confirmation before starting.
 
 ---
 
+## 7. Resolved this session (security hardening: DEMO_MODE + CORS)
+
+- **`DEMO_MODE` insecure default (critical, fixed)**: all 3 occurrences
+  (`billing.py`, `server.py` startup warning, `server.py` `/dev/reseed`
+  gate) defaulted to `"true"` when the env var was unset — meaning any
+  fresh deployment shipped with mock tier upgrades live by default (any
+  authenticated user could self-grant Pro for free). Changed default to
+  `"false"` in all three spots. `backend/.env` explicitly sets
+  `DEMO_MODE=true` for this demo/local environment; `.env.example`
+  documents the same pattern.
+- **CORS wildcard + credentials (high, fixed)**: `allow_credentials=True`
+  with `allow_origins=["*"]` is invalid under the CORS spec (browsers
+  reject the combination) and was a bad look on a public repo serving
+  per-user financial data regardless. Replaced with an `ALLOWED_ORIGINS`
+  env-driven allowlist, `allow_credentials=False` (auth is Bearer header,
+  not cookies), and a narrowed method/header list (`GET/POST/PATCH/DELETE/
+  OPTIONS`, `Authorization`/`Content-Type`). Verified via full pytest
+  (107/107) + live browser check (authenticated dashboard load, zero
+  console errors — confirms the preflight-triggering `Authorization` +
+  `Content-Type` request still succeeds under the new policy).
+- Two alternative hardening ideas were proposed but not yet implemented
+  (pending user decision): (a) fail-fast startup check that refuses to
+  boot if `DEMO_MODE=true` while an `ENVIRONMENT=production` flag is set,
+  rather than just warning; (b) regex-based origin matching for
+  `*.preview.emergentagent.com` so forked/re-previewed environments don't
+  need `ALLOWED_ORIGINS` manually updated each time.
+
 ## 6. Resolved this session (Strategy Planner fix + eval suite + README)
 
 - **Strategy Planner persona-leak bug (found + fixed)**: the AI system
