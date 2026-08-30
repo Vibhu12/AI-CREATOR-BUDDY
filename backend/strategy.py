@@ -62,7 +62,14 @@ STRATEGY_CONTEXT_TEMPLATE = (
     "Total revenue MTD: ${revenue:,.0f}. Profit MTD: ${profit:,.0f} (~{margin:.0f}% margin).\n"
     "Be specific. Quantify targets using THIS user's real numbers above — never invent a different "
     "business. Targets must scale proportionately to their current revenue (e.g. do not suggest a "
-    "$56k/mo creator's roadmap for someone at $500/mo, or vice versa). Tie each phase to a measurable outcome."
+    "$56k/mo creator's roadmap for someone at $500/mo, or vice versa). Tie each phase to a measurable outcome. "
+    "Ground every quantitative assumption (conversion rates, content output cadence, audience growth) in what "
+    "this specific business could realistically sustain in 30 days given its current scale and team size of one "
+    "— do not imply a content cadence or conversion rate far outside what a solo/small operator their size can "
+    "actually execute, even if the resulting numbers look impressive. "
+    "Do not invent precise-sounding statistics you have no basis for (e.g. a specific conversion percentage or "
+    "subscriber delta stated as fact) — where a number is an estimate rather than a measured fact, say so plainly "
+    "(e.g. 'roughly', 'an estimated') instead of presenting a guess as a precise figure."
 )
 
 
