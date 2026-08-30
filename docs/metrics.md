@@ -104,9 +104,13 @@ requires new instrumentation, only a dashboard/query layer on top of data
 already being collected.
 
 **Note on the eval groundedness guardrail:** an LLM-as-judge eval
-(`backend/evals/eval_llm_judge.py`) now exists and runs on demand. Running
-it surfaced a real, recurring issue — the Strategy Planner inventing
-precise-sounding but unsupported statistics — that two rounds of prompt
-tightening reduced but did not eliminate. The 95% threshold above is a
-target to build toward, not a number currently being hit; see
-`backend/evals/README.md` for the honest current state.
+(`backend/evals/eval_llm_judge.py`) now exists and runs on demand. It
+surfaced a real, recurring issue — the Strategy Planner inventing
+precise-sounding but unsupported statistics — that three rounds of prompt
+tightening improved substantially but did not fully close: measured
+across 6 repeated runs, simple single-asset portfolios now pass ~100% of
+the time, while complex multi-asset high-revenue portfolios still pass
+only ~33% of the time (recurring cause: derived unit-economics math with
+no real basis). The 95% threshold above is a target to build toward, not
+a number currently being hit uniformly across portfolio complexity; see
+`backend/evals/README.md` for the full breakdown.

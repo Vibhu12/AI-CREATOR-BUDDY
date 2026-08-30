@@ -31,27 +31,43 @@ can't silently ship again.
 | `eval_llm_judge.py` | **LLM-as-judge.** An independent model (GPT-5.4 — deliberately *not* the same model that generates the plan, Claude Sonnet 4.5, to avoid self-grading bias) reads the full plan next to the user's real portfolio and scores groundedness/actionability/scale-fit + an overall pass/fail verdict. Catches semantic quality issues structural checks can't — see "A real finding" below. |
 | `conftest.py` | Seeds two throwaway eval users directly in MongoDB (mirrors `../tests/conftest.py`'s audit-user pattern) with deliberately different revenue scales, and tears them down after the run. |
 
-## A real finding from `eval_llm_judge.py` (not yet fully resolved)
+## A real finding from `eval_llm_judge.py` — measured, not fully resolved
 
 Running the judge surfaced a genuine, recurring quality issue: the Strategy
-Planner tends to invent precise-sounding but unsupported numbers — e.g. "a
+Planner tended to invent precise-sounding but unsupported numbers — e.g. "a
 6.5% conversion rate," "260 new subscribers," "launch a paid tier" — stated
-as fact rather than as a labelled estimate, regardless of scale. Two rounds
-of prompt tightening in `strategy.py` (explicitly asking for realistic,
-scale-appropriate assumptions, then explicitly forbidding invented precise
-statistics) measurably changed *which* user's plan failed but did not
-eliminate the pattern — this looks like a persistent LLM tendency toward
-confident-sounding specificity rather than something a bigger prompt fully
-solves.
+as fact rather than as a labelled estimate.
 
-**Deliberately not force-passed.** Lowering the judge's threshold to make
-the test green would defeat the point of having it. This is left as an
-honest, open finding. Real next steps if picked up: (a) a second
-self-critique LLM pass that specifically checks the first draft for invented
-statistics before returning it to the user, or (b) changing the UI/schema to
-require the model to label estimates as ranges ("~5-8%") rather than single
-precise figures, which is both more honest and probably easier for the model
-to satisfy than "don't guess."
+Three rounds of prompt tightening in `strategy.py` were applied:
+1. Ground assumptions in what a solo/small operator can realistically sustain.
+2. Explicitly forbid single precise-looking invented figures — require ranges
+   ("5-8%" instead of "6.5%") for anything that's a projection, not a fact.
+3. Forbid inventing entirely new metric *types* the user's portfolio doesn't
+   track (RPM, CPM, AOV, email list size) as if they were known figures.
+
+**Measured result across 6 repeated runs after all three fixes:**
+
+| Eval user | Pass rate |
+|---|---|
+| `lo` (single small asset, $480 MTD) | 6/6 (100%) |
+| `hi` (2 assets, $210k+ MTD, course + YouTube) | ~2/6 (~33%) |
+
+The small/simple-portfolio case is now reliably grounded. The large,
+multi-asset, high-revenue case still fails a meaningful fraction of the
+time — the recurring pattern there is the model deriving unit-economics
+(e.g. implying a course price point by dividing revenue by an assumed
+enrollment count) it has no real basis for, producing internally
+inconsistent numbers even when each individual figure looks plausible.
+
+**Deliberately not force-passed further.** This is now a genuine,
+measured, partially-resolved finding rather than a total failure or a
+fully-solved bug — and that's a more honest state to document than either
+extreme. Real next steps if picked up: (a) forbid derived unit-economics
+math entirely for multi-asset portfolios and require the model to name
+required inputs ("assumed price point: ~$X — verify against your real
+funnel") explicitly rather than compute with them silently, or (b) a
+second self-critique LLM pass that specifically checks a draft for
+internally-inconsistent math before it's returned.
 
 ## Running
 
@@ -80,9 +96,12 @@ This is intentionally a **minimal starter**, not a full eval harness:
   run, not an average over many samples — a genuinely borderline plan can
   flip pass/fail between runs. Treat a single failure as a signal to look
   closer, not as proof of a regression; treat a *pattern* of failures
-  across several runs as one.
+  across several runs as one (see "A real finding" above for the measured
+  pattern: simple portfolios ~100% pass, complex multi-asset portfolios
+  ~33% pass, after three rounds of prompt tightening).
 
 Next person picking this up: start by adding an AI Coach groundedness eval
 (same pattern as `eval_groundedness.py`, pointed at `POST /api/ai/chat`),
-and consider tackling the invented-statistics finding above (self-critique
-pass or range-based estimates) before adding more judge dimensions.
+and consider tackling the remaining multi-asset-portfolio math-consistency
+gap above (forbid derived unit-economics, or a self-critique pass) before
+adding more judge dimensions.

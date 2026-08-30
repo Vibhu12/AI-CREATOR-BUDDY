@@ -47,14 +47,21 @@ STRATEGY_SCHEMA = (
     '  "title": str,\n'
     '  "summary": str (one sentence, <= 25 words),\n'
     '  "horizon_days": int,\n'
-    '  "north_star": {"metric": str, "target": str},\n'
-    '  "kpis": [{"label": str, "target": str}] (3-5 items),\n'
+    '  "north_star": {"metric": str, "target": str — a RANGE for any projected/estimated figure '
+    '(e.g. "$650-750/mo"), never a single invented precise number},\n'
+    '  "kpis": [{"label": str, "target": str — ranges for projected/estimated figures '
+    '(e.g. "5-8%", "150-250 subs"), not single invented figures}] (3-5 items),\n'
     '  "phases": [\n'
     '    {"window": "Days 1-30", "theme": str, "milestones": [str, str, str], '
     '"weekly_tasks": [str, str, str, str], "risk": str}\n'
     "  ] (one phase per 30-day block, sized to horizon_days),\n"
     '  "leading_indicators": [str, str, str]\n'
     "}\n"
+    "Hard rule on numbers: any figure in this plan is either (a) a fact directly derivable from the "
+    "user's real portfolio data given below, or (b) a projection, which MUST be expressed as a range "
+    "(\"5-8%\", \"$1.2k-1.8k\") — never as a single precise-looking number like \"6.5%\" or \"$1,450\". "
+    "A single exact figure implies false certainty you don't have; a range is the honest way to say "
+    "'this is my estimate, not a measurement.'"
 )
 
 STRATEGY_CONTEXT_TEMPLATE = (
@@ -68,8 +75,12 @@ STRATEGY_CONTEXT_TEMPLATE = (
     "— do not imply a content cadence or conversion rate far outside what a solo/small operator their size can "
     "actually execute, even if the resulting numbers look impressive. "
     "Do not invent precise-sounding statistics you have no basis for (e.g. a specific conversion percentage or "
-    "subscriber delta stated as fact) — where a number is an estimate rather than a measured fact, say so plainly "
-    "(e.g. 'roughly', 'an estimated') instead of presenting a guess as a precise figure."
+    "subscriber delta stated as fact) — express any such estimate as a range per the hard rule above, not a "
+    "single invented figure. Only reference metric TYPES that appear in the portfolio data above (revenue, "
+    "profit, followers) or are a direct, named property of one of the user's listed assets — do not introduce "
+    "new metric types the user's portfolio doesn't track (e.g. RPM, CPM, AOV, email list size) as if they were "
+    "known figures; if a tactic genuinely needs one of those, name it as something the user should go measure, "
+    "not as a number you're asserting."
 )
 
 
