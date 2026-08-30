@@ -127,6 +127,10 @@ cd backend && pytest evals/ -v -s
 Build and test history for all 18 iterations is in `docs/build-log/`,
 including the security pass at iteration 13.
 
+For a deeper look at the product thinking behind this: `docs/metrics.md`
+(north star metric + guardrails) and `docs/decisions.md` (twelve
+decisions made while building this, with the trade-offs written down).
+
 ## Known limitations
 
 - Burst rate limiter is in-process, so per-worker. Holds for

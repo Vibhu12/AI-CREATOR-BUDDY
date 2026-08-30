@@ -15,6 +15,8 @@ Generated June 2026 · Reflects code state as of iteration 14.
 | 2 | [`02_LLD.md`](./02_LLD.md)     | Engineers implementing / reviewing code | 20 min    |
 | 3 | [`03_USER_JOURNEY.md`](./03_USER_JOURNEY.md) | PMs, designers, QA, support | 15 min    |
 | 4 | [`04_METRICS_AND_AB.md`](./04_METRICS_AND_AB.md) | Growth, analytics, engineering leads | 12 min    |
+| 5 | [`metrics.md`](./metrics.md) | PM/growth interviewers, hiring managers | 6 min |
+| 6 | [`decisions.md`](./decisions.md) | Hiring managers, interviewers, future me | 10 min |
 
 ---
 

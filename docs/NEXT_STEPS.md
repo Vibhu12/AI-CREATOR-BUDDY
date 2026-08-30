@@ -83,6 +83,21 @@ User was asked to pick one/more/all — awaiting confirmation before starting.
 
 ---
 
+## 8. Resolved this session (docs/metrics.md + docs/decisions.md)
+
+- Created `docs/metrics.md`: North Star (Weekly Active Decisions, not
+  WAU), 5 input metrics, 4 guardrails (incl. the two-sided free-tier
+  quota hit-rate band), and 2 counter-metrics. Grounded in actual
+  instrumented events already in `backend/analytics.py`'s allowlist —
+  no new instrumentation required to compute any of it.
+- Created `docs/decisions.md`: 12 decision entries (Decision/Why/
+  Trade-off/Would-I-again format), all grounded in real code — quota
+  numbers from `quotas.py`, tier pricing from `billing.py`, the
+  DEMO_MODE and Strategy Planner persona-leak fixes from this session,
+  the rate-limiter and competitor-archetype trade-offs from actual code
+  comments.
+- Linked both from `docs/README.md` index and `README.md`.
+
 ## 7. Resolved this session (security hardening: DEMO_MODE + CORS)
 
 - **`DEMO_MODE` insecure default (critical, fixed)**: all 3 occurrences
