@@ -7,15 +7,17 @@ import {
   Pressable,
   ActivityIndicator,
   RefreshControl,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import Svg, { Circle, Defs, LinearGradient as SvgGrad, Stop } from 'react-native-svg';
 import { colors, spacing, radius, fmtCurrency, fmtCompact, fmtPercent } from '@/src/theme/tokens';
 import { api } from '@/src/services/api';
 import { track } from '@/src/services/analytics';
+import { useAuth } from '@/src/auth/AuthContext';
 import { NotificationsModal } from '@/src/components/NotificationsModal';
 
 type DashboardData = any;
@@ -107,6 +109,7 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [showNotifs, setShowNotifs] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [togglingDemo, setTogglingDemo] = useState(false);
   const router = useRouter();
 
   const loadNotifs = useCallback(async () => {
@@ -132,13 +135,33 @@ export default function Dashboard() {
     }
   }, []);
 
-  useEffect(() => { load(); loadNotifs(); }, [load, loadNotifs]);
+  useEffect(() => { loadNotifs(); }, [loadNotifs]);
+  // useFocusEffect (not a plain mount-only useEffect) so that toggling demo
+  // mode from the Profile tab and switching back here re-syncs immediately
+  // — Expo Router keeps tab screens mounted, so a mount-only effect would
+  // show stale data until a full reload.
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await load();
     setRefreshing(false);
   }, [load]);
+
+  const { refreshUser } = useAuth();
+
+  const onToggleDemo = useCallback(async (next: boolean) => {
+    setTogglingDemo(true);
+    try {
+      await api.setDemoMode(next);
+      track('demo_mode_toggled', { demo_mode: next });
+      await Promise.all([load(), refreshUser()]);
+    } catch (e) {
+      console.warn(e);
+    } finally {
+      setTogglingDemo(false);
+    }
+  }, [load, refreshUser]);
 
   if (!data) {
     return (
@@ -164,6 +187,28 @@ export default function Dashboard() {
             <Ionicons name="notifications-outline" size={20} color={colors.onSurface} />
             {unreadCount > 0 && <View style={styles.notifDot} />}
           </Pressable>
+        </View>
+        <View style={styles.demoBar} testID="demo-mode-toggle">
+          <View style={styles.demoBarLeft}>
+            <Ionicons
+              name={data.demo_mode ? 'flask-outline' : 'person-circle-outline'}
+              size={15}
+              color={data.demo_mode ? colors.brand : colors.success}
+            />
+            <Text style={styles.demoBarText}>
+              {data.demo_mode ? 'Viewing sample data (demo)' : 'Viewing your data'}
+            </Text>
+          </View>
+          {togglingDemo ? (
+            <ActivityIndicator size="small" color={colors.brand} />
+          ) : (
+            <Switch
+              value={!!data.demo_mode}
+              onValueChange={onToggleDemo}
+              trackColor={{ false: colors.surfaceTertiary, true: colors.brandTertiary }}
+              thumbColor={data.demo_mode ? colors.brand : colors.success}
+            />
+          )}
         </View>
       </SafeAreaView>
 
@@ -314,6 +359,22 @@ const styles = StyleSheet.create({
     width: 8, height: 8, borderRadius: 4, backgroundColor: colors.brand,
     borderWidth: 2, borderColor: colors.surface,
   },
+  demoBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSecondary,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    minHeight: 44,
+  },
+  demoBarLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1, marginRight: spacing.sm },
+  demoBarText: { color: colors.onSurfaceSecondary, fontSize: 12.5, fontWeight: '500', flexShrink: 1 },
 
   hero: {
     marginTop: spacing.sm,

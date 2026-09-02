@@ -143,6 +143,11 @@ export const api = {
 
   // Dev / reset
   reseedStarter: () => authFetch(`/api/dev/reseed`, { method: 'POST' }).then(json),
+  setDemoMode: (demo_mode: boolean) => authFetch(`/api/profile/demo-mode`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ demo_mode }),
+  }).then(json),
 };
 
 export { getToken };

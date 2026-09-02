@@ -84,11 +84,19 @@ STRATEGY_CONTEXT_TEMPLATE = (
 )
 
 
+def _demo_filter(user: dict) -> dict:
+    """Mirrors server.py's `demo_filter()` — kept local to avoid a
+    cross-module import between independent router modules."""
+    if user.get("demo_mode", True):
+        return {}
+    return {"is_demo": {"$ne": True}}
+
+
 async def _build_strategy_context(db, user: dict) -> str:
     """Builds a per-user context block for the Strategy Engine — mirrors the
     AI Coach's `_build_system_prompt` in server.py so plans are grounded in
     THIS user's real portfolio, not a fixed demo persona."""
-    assets = await db.assets.find({"user_id": user["user_id"]}, {"_id": 0}).to_list(100)
+    assets = await db.assets.find({"user_id": user["user_id"], **_demo_filter(user)}, {"_id": 0}).to_list(100)
     if not assets:
         portfolio = "  (no assets yet — recommend how to launch the first one)"
     else:
@@ -115,14 +123,14 @@ def make_strategy_router(db, api_key: str, current_user):
     @router.get("/plans")
     async def list_plans(user: dict = Depends(current_user)):
         plans = await db.strategy_plans.find(
-            {"user_id": user["user_id"]}, {"_id": 0}
+            {"user_id": user["user_id"], **_demo_filter(user)}, {"_id": 0}
         ).sort("created_at", -1).to_list(50)
         return {"items": plans}
 
     @router.get("/plans/{plan_id}")
     async def get_plan(plan_id: str, user: dict = Depends(current_user)):
         plan = await db.strategy_plans.find_one(
-            {"id": plan_id, "user_id": user["user_id"]}, {"_id": 0}
+            {"id": plan_id, "user_id": user["user_id"], **_demo_filter(user)}, {"_id": 0}
         )
         if not plan:
             raise HTTPException(404, "plan not found")
@@ -191,7 +199,7 @@ def make_strategy_router(db, api_key: str, current_user):
         if payload.kind not in ("milestones", "weekly_tasks", "leading_indicators"):
             raise HTTPException(400, "invalid kind")
         plan = await db.strategy_plans.find_one(
-            {"id": plan_id, "user_id": user["user_id"]}, {"_id": 0}
+            {"id": plan_id, "user_id": user["user_id"], **_demo_filter(user)}, {"_id": 0}
         )
         if not plan:
             raise HTTPException(404, "plan not found")

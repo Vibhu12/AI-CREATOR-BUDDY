@@ -14,7 +14,7 @@ import { startAnalytics, stopAnalytics, track } from '@/src/services/analytics';
 const BASE = process.env.EXPO_PUBLIC_BACKEND_URL;
 const TOKEN_KEY = 'creatoros_session_token';
 
-type User = { user_id: string; email: string; name: string; picture?: string; onboarding_complete?: boolean; youtube_handle?: string | null; instagram_handle?: string | null; tier?: string };
+type User = { user_id: string; email: string; name: string; picture?: string; onboarding_complete?: boolean; youtube_handle?: string | null; instagram_handle?: string | null; tier?: string; demo_mode?: boolean };
 type AuthState = {
   loading: boolean;
   user: User | null;

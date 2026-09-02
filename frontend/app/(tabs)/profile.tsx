@@ -1,7 +1,7 @@
-import { useEffect, useState, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable, Image } from 'react-native';
+import { useState, useCallback } from 'react';
+import { View, Text, ScrollView, StyleSheet, Pressable, Image, Switch, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radius, fmtCompact } from '@/src/theme/tokens';
 import { api } from '@/src/services/api';
@@ -47,12 +47,13 @@ function GoalCard({ goal }: { goal: any }) {
 }
 
 export default function Profile() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, refreshUser } = useAuth();
   const router = useRouter();
   const [goals, setGoals] = useState<any[]>([]);
   const [content, setContent] = useState<any[]>([]);
   const [connections, setConnections] = useState<any[]>([]);
   const [reseeding, setReseeding] = useState(false);
+  const [togglingDemo, setTogglingDemo] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -62,9 +63,23 @@ export default function Profile() {
       setConnections(conn.connections);
     } catch (e) { console.warn(e); }
   }, []);
-  useEffect(() => { load(); }, [load]);
+  // useFocusEffect so switching from Dashboard (where demo mode may have
+  // just been toggled) back to this tab always shows fresh goals/content,
+  // not whatever was loaded on first mount.
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const initials = (user?.name ?? 'Maya Chen')
+  const onToggleDemo = useCallback(async (next: boolean) => {
+    setTogglingDemo(true);
+    try {
+      await api.setDemoMode(next);
+      await refreshUser();
+      await load();
+    } catch (e) { console.warn(e); } finally { setTogglingDemo(false); }
+  }, [refreshUser, load]);
+
+  const isDemoMode = user?.demo_mode ?? true;
+
+  const initials = (user?.name ?? 'Your Profile')
     .split(' ').slice(0, 2).map(s => s[0]?.toUpperCase()).join('');
 
   return (
@@ -72,7 +87,7 @@ export default function Profile() {
       <SafeAreaView edges={['top']} style={{ backgroundColor: colors.surface }}>
         <View style={styles.header}>
           <Text style={styles.kicker}>PROFILE</Text>
-          <Text style={styles.title}>{user?.name ?? 'Maya Chen'}</Text>
+          <Text style={styles.title}>{user?.name ?? 'Your Profile'}</Text>
         </View>
       </SafeAreaView>
 
@@ -80,10 +95,10 @@ export default function Profile() {
         <View style={styles.heroBlock}>
           {user?.picture
             ? <Image source={{ uri: user.picture }} style={styles.bigAvatarImg} />
-            : <View style={styles.bigAvatar}><Text style={styles.bigAvatarText}>{initials || 'MC'}</Text></View>
+            : <View style={styles.bigAvatar}><Text style={styles.bigAvatarText}>{initials || '?'}</Text></View>
           }
-          <Text style={styles.fullName}>{user?.name ?? 'Maya Chen'}</Text>
-          <Text style={styles.handle}>{user?.email ?? '@mayabuilds · Creator, founder'}</Text>
+          <Text style={styles.fullName}>{user?.name ?? 'Your Profile'}</Text>
+          <Text style={styles.handle}>{user?.email ?? 'Finish onboarding to add your details'}</Text>
           <Pressable onPress={() => router.push('/pricing')} style={styles.tierPill} testID="tier-badge">
             <Ionicons name="star" size={11} color={colors.brand} />
             <Text style={styles.tierPillText}>
@@ -95,9 +110,29 @@ export default function Profile() {
           </Pressable>
         </View>
 
+        <View style={styles.demoModeRow} testID="profile-demo-mode-toggle">
+          <View style={{ flex: 1, marginRight: spacing.sm }}>
+            <Text style={styles.demoModeTitle}>Demo mode</Text>
+            <Text style={styles.demoModeSub}>
+              {isDemoMode ? "Showing Maya's sample data across the app" : 'Showing your real data'}
+            </Text>
+          </View>
+          {togglingDemo ? (
+            <ActivityIndicator size="small" color={colors.brand} />
+          ) : (
+            <Switch
+              value={isDemoMode}
+              onValueChange={onToggleDemo}
+              trackColor={{ false: colors.surfaceTertiary, true: colors.brandTertiary }}
+              thumbColor={isDemoMode ? colors.brand : colors.success}
+            />
+          )}
+        </View>
+
         <View style={styles.section}>
           <View style={styles.sectionHeadRow}>
             <Text style={styles.sectionTitle}>Active goals</Text>
+
             <Pressable onPress={() => router.push('/goals')} testID="manage-goals">
               <Text style={styles.sectionLink}>
                 Manage <Ionicons name="chevron-forward" size={11} color={colors.brand} />
@@ -196,6 +231,9 @@ export default function Profile() {
               {reseeding ? 'Reloading…' : 'Reload Maya demo data'}
             </Text>
           </Pressable>
+          <Text style={styles.reseedCaption}>
+            Resets the sample dataset used by Demo mode above — your own real data is never touched.
+          </Text>
 
           <Pressable onPress={signOut} style={[styles.signOutBtn, { marginTop: spacing.sm }]} testID="sign-out-btn">
             <Ionicons name="log-out-outline" size={18} color={colors.error} />
@@ -241,6 +279,18 @@ const styles = StyleSheet.create({
   },
   tierPillText: { color: colors.brand, fontSize: 11, fontWeight: '700', letterSpacing: 0.4 },
   upgradeHint: { color: colors.onSurface, fontSize: 11, fontWeight: '600' },
+
+  demoModeRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginHorizontal: spacing.lg, marginTop: spacing.lg,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.md,
+    borderRadius: radius.md, backgroundColor: colors.surfaceSecondary,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border,
+    minHeight: 48,
+  },
+  demoModeTitle: { color: colors.onSurface, fontSize: 14, fontWeight: '600' },
+  demoModeSub: { color: colors.onSurfaceTertiary, fontSize: 12, marginTop: 2 },
+  reseedCaption: { color: colors.onSurfaceTertiary, fontSize: 11, marginTop: spacing.xs, paddingHorizontal: 2 },
 
   section: { paddingHorizontal: spacing.lg, marginTop: spacing.xl },
   sectionTitle: { color: colors.onSurface, fontSize: 13, letterSpacing: 1.2, fontWeight: '600', marginBottom: spacing.md },

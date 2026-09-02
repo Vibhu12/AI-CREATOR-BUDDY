@@ -285,15 +285,17 @@ STARTER_PLAN: dict = {
 
 async def seed_user_starter(user_id: str) -> None:
     """Copy the starter template into a new user's namespace. Idempotent —
-    silently no-ops if the user already has assets."""
-    if await db.assets.count_documents({"user_id": user_id}) > 0:
+    silently no-ops if the user already has assets. Every record is tagged
+    `is_demo: True` so it can be hidden by the demo-mode toggle without
+    being confused with data the user actually owns."""
+    if await db.assets.count_documents({"user_id": user_id, "is_demo": True}) > 0:
         return
     await db.assets.insert_many([
-        {**a, "id": str(uuid.uuid4()), "user_id": user_id, "created_at": now_utc()}
+        {**a, "id": str(uuid.uuid4()), "user_id": user_id, "created_at": now_utc(), "is_demo": True}
         for a in STARTER_ASSETS
     ])
     await db.goals.insert_many([
-        {**g, "id": str(uuid.uuid4()), "user_id": user_id, "created_at": now_utc()}
+        {**g, "id": str(uuid.uuid4()), "user_id": user_id, "created_at": now_utc(), "is_demo": True}
         for g in STARTER_GOALS
     ])
     await db.content.insert_many([
@@ -302,11 +304,12 @@ async def seed_user_starter(user_id: str) -> None:
             "id": str(uuid.uuid4()),
             "user_id": user_id,
             "published_at": (now_utc() - timedelta(days=c["_offset_days"])).isoformat(),
+            "is_demo": True,
         }
         for c in STARTER_CONTENT
     ])
     await db.recommendations.insert_many([
-        {**r, "id": str(uuid.uuid4()), "user_id": user_id}
+        {**r, "id": str(uuid.uuid4()), "user_id": user_id, "is_demo": True}
         for r in STARTER_RECS
     ])
     await db.notifications.insert_many([
@@ -316,6 +319,7 @@ async def seed_user_starter(user_id: str) -> None:
             "user_id": user_id,
             "read": False,
             "at": (now_utc() - timedelta(hours=n["_offset_hours"])).isoformat(),
+            "is_demo": True,
         }
         for n in STARTER_NOTIFICATIONS
     ])
@@ -327,6 +331,7 @@ async def seed_user_starter(user_id: str) -> None:
             "user_id": user_id,
             "session_id": scoped_session,
             "at": (now_utc() - timedelta(minutes=m["_offset_minutes"])).isoformat(),
+            "is_demo": True,
         }
         for m in STARTER_CHAT
     ])
@@ -338,8 +343,26 @@ async def seed_user_starter(user_id: str) -> None:
         "created_at": now_utc().isoformat(),
         "task_progress": {"0.weekly_tasks.0": True, "0.weekly_tasks.1": True},
         "progress_pct": 16.7,
+        "is_demo": True,
     })
     log.info("seeded starter data for %s", user_id)
+
+
+def demo_filter(user: dict) -> dict:
+    """Mongo filter fragment selecting which of the user's own records to
+    read, based on their `demo_mode` toggle:
+      - demo_mode True  (default) → no filter at all — this is the existing
+        behavior preserved exactly (seeded Maya data + anything real the
+        user has added, merged, same as before this toggle existed).
+      - demo_mode False            → hide seeded data, show ONLY the user's
+        real records (anything they actually added/connected themselves).
+    Deliberately asymmetric rather than a strict either/or: a real action
+    (adding a goal, generating a plan) must never become invisible just
+    because demo_mode happens to be on.
+    """
+    if user.get("demo_mode", True):
+        return {}
+    return {"is_demo": {"$ne": True}}
 
 
 # ---------------------------------------------------------------------------
@@ -382,14 +405,59 @@ async def root():
     return {"name": "CreatorOS API", "ok": True}
 
 
+def _compute_real_hero(assets: List[dict]) -> dict:
+    """Computed (not hardcoded) health score for a real, non-demo portfolio.
+    Deliberately simple/heuristic — see docs/decisions.md for why this
+    exists instead of a fixed number."""
+    if not assets:
+        return {
+            "score": 0,
+            "label": "Business Health",
+            "delta": "Add your first asset to see this",
+            "breakdown": [
+                {"label": "Growth", "value": 0},
+                {"label": "Financial", "value": 0},
+                {"label": "Content", "value": 0},
+                {"label": "Brand", "value": 0},
+            ],
+        }
+    revenue_mtd = sum(a.get("revenue_mtd", 0) for a in assets)
+    profit_mtd = sum(a.get("profit_mtd", 0) for a in assets)
+    followers_total = sum(a.get("followers", 0) for a in assets)
+    margin = (profit_mtd / revenue_mtd * 100) if revenue_mtd else 0
+    financial = round(min(100, max(0, margin)))
+    trends = [a.get("trend") for a in assets if a.get("trend") and len(a["trend"]) >= 2]
+    growth = round(min(100, sum(max(t[-1] - t[0], 0) for t in trends) / len(trends) * 6)) if trends else round(
+        sum(a.get("ai_score", 50) for a in assets) / len(assets)
+    )
+    content = round(sum(a.get("ai_score", 50) for a in assets) / len(assets))
+    brand = round(min(100, followers_total / 3000))
+    score = round((financial + growth + content + brand) / 4)
+    return {
+        "score": score,
+        "label": "Business Health",
+        "delta": "Based on your current portfolio",
+        "breakdown": [
+            {"label": "Growth", "value": growth},
+            {"label": "Financial", "value": financial},
+            {"label": "Content", "value": content},
+            {"label": "Brand", "value": brand},
+        ],
+    }
+
+
 @api.get("/dashboard")
 async def dashboard(user: dict = Depends(current_user)):
     # Guarantee starter data is available for any authenticated user — this covers
     # accounts that were created before the on-new-user hook existed or were
     # seeded incompletely.
     await seed_user_starter(user["user_id"])
-    assets = await db.assets.find({"user_id": user["user_id"]}, PROJECTION).to_list(100)
-    recs = await db.recommendations.find({"user_id": user["user_id"]}, PROJECTION).to_list(100)
+    dfilter = demo_filter(user)
+    assets = await db.assets.find({"user_id": user["user_id"], **dfilter}, PROJECTION).to_list(100)
+    recs = await db.recommendations.find({"user_id": user["user_id"], **dfilter}, PROJECTION).to_list(100)
+    notifs = await db.notifications.find(
+        {"user_id": user["user_id"], **dfilter, "read": False}, PROJECTION
+    ).sort("at", -1).to_list(2)
     # Rank recommendations by priority tier then impact descending so newer high-impact
     # items surface even when added after the initial seed.
     _priority_rank = {"high": 0, "medium": 1, "low": 2}
@@ -399,10 +467,12 @@ async def dashboard(user: dict = Depends(current_user)):
     followers_total = sum(a.get("followers", 0) for a in assets)
     margin = (profit_mtd / revenue_mtd * 100) if revenue_mtd else 0
     first_name = (user.get("name") or "there").split(" ")[0]
-    return {
-        "greeting": f"Welcome back, {first_name}",
-        "subtitle": "Your business is operating at 87% efficiency",
-        "hero": {
+    is_demo = user.get("demo_mode", True)
+
+    if is_demo:
+        # Fixed demo-persona presentation — matches the seeded Maya dataset 1:1.
+        subtitle = "Your business is operating at 87% efficiency"
+        hero = {
             "score": 87,
             "label": "Business Health",
             "delta": "+6 vs last month",
@@ -412,25 +482,48 @@ async def dashboard(user: dict = Depends(current_user)):
                 {"label": "Content", "value": 88},
                 {"label": "Brand", "value": 79},
             ],
-        },
-        "metrics": [
-            {"key": "revenue", "label": "Revenue MTD", "value": revenue_mtd, "delta": 12.4, "format": "currency"},
-            {"key": "profit", "label": "Profit MTD", "value": profit_mtd, "delta": 9.1, "format": "currency"},
-            {"key": "margin", "label": "Margin", "value": round(margin, 1), "delta": 1.8, "format": "percent"},
-            {"key": "followers", "label": "Total Audience", "value": followers_total, "delta": 4.6, "format": "compact"},
-        ],
-        "recommendations": recs[:4],
-        "alerts": [
+        }
+        alerts = [
             {"kind": "viral", "text": "Your YouTube video crossed 400k views — schedule a follow-up"},
             {"kind": "opportunity", "text": "Ship It waitlist hit 612 — open enrollment within 7 days"},
+        ]
+        metric_deltas = {"revenue": 12.4, "profit": 9.1, "margin": 1.8, "followers": 4.6}
+    else:
+        hero = _compute_real_hero(assets)
+        subtitle = (
+            f"Your business is operating at {hero['score']}% efficiency"
+            if assets else "No real data yet — connect an integration or add your first asset"
+        )
+        # Alerts derived from the user's own unread notifications — no fabricated text.
+        alerts = [
+            {"kind": n.get("kind", "opportunity"), "text": n.get("title") or n.get("body") or ""}
+            for n in notifs
+        ]
+        metric_deltas = {"revenue": 0, "profit": 0, "margin": 0, "followers": 0}
+
+    return {
+        "greeting": f"Welcome back, {first_name}",
+        "subtitle": subtitle,
+        "hero": hero,
+        "metrics": [
+            {"key": "revenue", "label": "Revenue MTD", "value": revenue_mtd, "delta": metric_deltas["revenue"], "format": "currency"},
+            {"key": "profit", "label": "Profit MTD", "value": profit_mtd, "delta": metric_deltas["profit"], "format": "currency"},
+            {"key": "margin", "label": "Margin", "value": round(margin, 1), "delta": metric_deltas["margin"], "format": "percent"},
+            {"key": "followers", "label": "Total Audience", "value": followers_total, "delta": metric_deltas["followers"], "format": "compact"},
         ],
+        "recommendations": recs[:4],
+        "alerts": alerts,
+        "demo_mode": is_demo,
     }
 
 
 @api.get("/portfolio")
 async def get_portfolio(user: dict = Depends(current_user)):
     await seed_user_starter(user["user_id"])
-    assets = await db.assets.find({"user_id": user["user_id"]}, PROJECTION).sort("revenue_mtd", -1).to_list(200)
+    dfilter = demo_filter(user)
+    assets = await db.assets.find(
+        {"user_id": user["user_id"], **dfilter}, PROJECTION
+    ).sort("revenue_mtd", -1).to_list(200)
     total_revenue = sum(a.get("revenue_mtd", 0) for a in assets)
     total_profit = sum(a.get("profit_mtd", 0) for a in assets)
     return {
@@ -450,18 +543,52 @@ async def create_asset(payload: AssetIn, user: dict = Depends(current_user)):
 
 @api.get("/content")
 async def get_content(user: dict = Depends(current_user)):
-    items = await db.content.find({"user_id": user["user_id"]}, PROJECTION).sort("published_at", -1).to_list(50)
+    items = await db.content.find(
+        {"user_id": user["user_id"], **demo_filter(user)}, PROJECTION
+    ).sort("published_at", -1).to_list(50)
     return {"items": items}
 
 
 @api.get("/finance")
 async def get_finance(user: dict = Depends(current_user)):
+    is_demo = user.get("demo_mode", True)
     # Derive baseline from user's assets so revenue scales meaningfully
-    assets = await db.assets.find({"user_id": user["user_id"]}, PROJECTION).to_list(100)
+    assets = await db.assets.find(
+        {"user_id": user["user_id"], **demo_filter(user)}, PROJECTION
+    ).to_list(100)
+
+    if not assets:
+        # No real data yet (demo_mode off, nothing added/connected) — honest
+        # zero-state rather than a fabricated fallback series.
+        today = now_utc().date()
+        zero_series = [
+            {"date": (today - timedelta(days=i - 1)).isoformat(), "revenue": 0, "expense": 0}
+            for i in range(30, 0, -1)
+        ]
+        zero_proj = [
+            {"date": (today + timedelta(days=i)).isoformat(), "revenue": 0, "expense": 0}
+            for i in range(1, 91)
+        ]
+        return {
+            "summary": {
+                "revenue_30d": 0, "expense_30d": 0, "profit_30d": 0, "margin": 0,
+                "forecast_60d": 0, "forecast_90d": 0, "runway_months": 0,
+            },
+            "series": zero_series,
+            "projection": zero_proj,
+            "by_asset": [],
+            "by_platform": [],
+            "expense_categories": [],
+            "transactions": [],
+        }
+
     total_rev_mtd = sum(a.get("revenue_mtd", 0) for a in assets)
     total_prof_mtd = sum(a.get("profit_mtd", 0) for a in assets)
-    daily_rev = (total_rev_mtd / 30) if total_rev_mtd else 1400.0
-    daily_exp = ((total_rev_mtd - total_prof_mtd) / 30) if total_rev_mtd else 620.0
+    # Demo persona gets a stylized non-zero baseline even in edge cases;
+    # real users with genuinely $0 tracked revenue see 0, not a fake number.
+    fallback_rev, fallback_exp = (1400.0, 620.0) if is_demo else (0.0, 0.0)
+    daily_rev = (total_rev_mtd / 30) if total_rev_mtd else fallback_rev
+    daily_exp = ((total_rev_mtd - total_prof_mtd) / 30) if total_rev_mtd else fallback_exp
     series = _finance_series(base_rev=daily_rev, base_exp=daily_exp, seed=_hash_seed(user["user_id"]))
     revenue = sum(d["revenue"] for d in series)
     expense = sum(d["expense"] for d in series)
@@ -525,7 +652,7 @@ async def get_finance(user: dict = Depends(current_user)):
             "margin": round(profit / revenue * 100, 1) if revenue else 0,
             "forecast_60d": round(profit * 2.18, 2),
             "forecast_90d": round(profit * 3.31, 2),
-            "runway_months": 14.2,
+            "runway_months": 14.2 if is_demo else 0,
         },
         "series": series,
         "projection": proj,
@@ -538,13 +665,15 @@ async def get_finance(user: dict = Depends(current_user)):
             {"id": "t3", "label": "Editor — September retainer", "amount": -1800.00, "kind": "out", "at": (now_utc() - timedelta(days=1)).isoformat()},
             {"id": "t4", "label": "Sponsor — Linear", "amount": 6500.00, "kind": "in", "at": (now_utc() - timedelta(days=2)).isoformat()},
             {"id": "t5", "label": "Tools — Adobe, Figma, Notion", "amount": -184.00, "kind": "out", "at": (now_utc() - timedelta(days=3)).isoformat()},
-        ],
+        ] if is_demo else [],
     }
 
 
 @api.get("/goals")
 async def get_goals(user: dict = Depends(current_user)):
-    items = await db.goals.find({"user_id": user["user_id"]}, PROJECTION).to_list(200)
+    items = await db.goals.find(
+        {"user_id": user["user_id"], **demo_filter(user)}, PROJECTION
+    ).to_list(200)
     return {"items": items}
 
 
@@ -579,7 +708,7 @@ async def update_goal(goal_id: str, payload: GoalUpdate, user: dict = Depends(cu
         raise HTTPException(400, "target must be positive")
 
     r = await db.goals.update_one(
-        {"id": goal_id, "user_id": user["user_id"]},
+        {"id": goal_id, "user_id": user["user_id"], **demo_filter(user)},
         {"$set": update},
     )
     if r.matched_count == 0:
@@ -590,7 +719,7 @@ async def update_goal(goal_id: str, payload: GoalUpdate, user: dict = Depends(cu
 
 @api.delete("/goals/{goal_id}")
 async def delete_goal(goal_id: str, user: dict = Depends(current_user)):
-    r = await db.goals.delete_one({"id": goal_id, "user_id": user["user_id"]})
+    r = await db.goals.delete_one({"id": goal_id, "user_id": user["user_id"], **demo_filter(user)})
     if r.deleted_count == 0:
         raise HTTPException(404, "Goal not found")
     return {"ok": True}
@@ -601,18 +730,20 @@ async def delete_goal(goal_id: str, user: dict = Depends(current_user)):
 async def get_asset_detail(asset_id: str, user: dict = Depends(current_user)):
     """Rich single-asset detail: base asset + platform-scoped content + AI recs."""
     asset = await db.assets.find_one(
-        {"id": asset_id, "user_id": user["user_id"]}, PROJECTION,
+        {"id": asset_id, "user_id": user["user_id"], **demo_filter(user)}, PROJECTION,
     )
     if not asset:
         raise HTTPException(404, "Asset not found")
 
     # Recent content for this platform
     content = await db.content.find(
-        {"user_id": user["user_id"], "platform": asset.get("platform")}, PROJECTION,
+        {"user_id": user["user_id"], "platform": asset.get("platform"), **demo_filter(user)}, PROJECTION,
     ).sort("published_at", -1).to_list(20)
 
     # AI recommendations scoped by platform mention (heuristic — matches category)
-    all_recs = await db.recommendations.find({"user_id": user["user_id"]}, PROJECTION).to_list(50)
+    all_recs = await db.recommendations.find(
+        {"user_id": user["user_id"], **demo_filter(user)}, PROJECTION
+    ).to_list(50)
     platform = (asset.get("platform") or "").lower()
     scoped_recs = [
         r for r in all_recs
@@ -645,7 +776,9 @@ async def get_asset_detail(asset_id: str, user: dict = Depends(current_user)):
 
 @api.get("/recommendations")
 async def get_recs(user: dict = Depends(current_user)):
-    items = await db.recommendations.find({"user_id": user["user_id"]}, PROJECTION).to_list(200)
+    items = await db.recommendations.find(
+        {"user_id": user["user_id"], **demo_filter(user)}, PROJECTION
+    ).to_list(200)
     return {"items": items}
 
 
@@ -653,7 +786,7 @@ async def get_recs(user: dict = Depends(current_user)):
 @api.get("/notifications")
 async def get_notifications(user: dict = Depends(current_user)):
     items = await db.notifications.find(
-        {"user_id": user["user_id"]}, PROJECTION,
+        {"user_id": user["user_id"], **demo_filter(user)}, PROJECTION,
     ).sort("at", -1).to_list(100)
     unread = sum(1 for i in items if not i.get("read"))
     return {"items": items, "unread": unread}
@@ -689,16 +822,33 @@ async def onboarding_status(user: dict = Depends(current_user)):
     }
 
 
+class DemoModeUpdate(BaseModel):
+    demo_mode: bool
+
+
+@api.patch("/profile/demo-mode")
+async def set_demo_mode(payload: DemoModeUpdate, user: dict = Depends(current_user)):
+    """Toggle between the seeded Maya demo persona and the signed-in user's
+    own real data. See `demo_filter()` for how every read endpoint respects
+    this — this endpoint only flips the flag itself."""
+    await db.users.update_one(
+        {"user_id": user["user_id"]},
+        {"$set": {"demo_mode": payload.demo_mode, "updated_at": now_utc()}},
+    )
+    return {"ok": True, "demo_mode": payload.demo_mode}
+
+
 @api.post("/dev/reseed")
 async def reseed_starter(user: dict = Depends(current_user)):
-    """Reload the Maya starter dataset for the current user. Wipes any existing
-    user-scoped data and reseeds from the template. DEMO_MODE only."""
+    """Reload the Maya starter dataset for the current user. Wipes only the
+    seeded demo data (is_demo: True) and reseeds it fresh — never touches
+    the user's own real data. DEMO_MODE only."""
     if os.environ.get("DEMO_MODE", "false").strip().lower() != "true":
         raise HTTPException(403, "Endpoint disabled in production")
     uid = user["user_id"]
     for coll in ("assets", "goals", "content", "recommendations",
                  "strategy_plans", "chat_messages", "notifications"):
-        await db[coll].delete_many({"user_id": uid})
+        await db[coll].delete_many({"user_id": uid, "is_demo": True})
     await seed_user_starter(uid)
     return {"ok": True, "user_id": uid}
 
@@ -732,9 +882,14 @@ SYSTEM_PROMPT_TEMPLATE = (
 
 
 async def _build_system_prompt(user: dict) -> str:
-    assets = await db.assets.find({"user_id": user["user_id"]}, PROJECTION).to_list(100)
+    assets = await db.assets.find(
+        {"user_id": user["user_id"], **demo_filter(user)}, PROJECTION
+    ).to_list(100)
     if not assets:
-        portfolio = "  (no assets yet)"
+        portfolio = (
+            "  (no assets yet — encourage them to add their first asset or connect an "
+            "integration; don't invent numbers for a business that doesn't exist yet)"
+        )
     else:
         portfolio = "\n".join(
             f"  - {a['name']} ({a['platform']}) — {a.get('followers', 0):,} followers, ${a.get('revenue_mtd', 0):,.0f} MTD"
@@ -813,8 +968,11 @@ async def ai_chat(req: ChatRequest, user: dict = Depends(current_user)):
 @api.get("/ai/chat/history")
 async def chat_history(session_id: str, user: dict = Depends(current_user)):
     scoped_session = f"{user['user_id']}::{session_id}"
+    # Same rule as every other collection: the toggle picks which universe
+    # of data you're looking at — demo_mode True shows Maya's seeded
+    # transcript, False shows only messages you actually sent yourself.
     msgs = await db.chat_messages.find(
-        {"session_id": scoped_session, "user_id": user["user_id"]},
+        {"session_id": scoped_session, "user_id": user["user_id"], **demo_filter(user)},
         PROJECTION,
     ).sort("at", 1).to_list(500)
     return {"messages": msgs}

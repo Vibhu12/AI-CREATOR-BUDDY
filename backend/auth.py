@@ -88,6 +88,7 @@ def make_auth_router(db, on_new_user=None):
                 "youtube_handle": None,
                 "instagram_handle": None,
                 "tier": "free",
+                "demo_mode": True,
                 "created_at": now_utc(),
                 "updated_at": now_utc(),
             })

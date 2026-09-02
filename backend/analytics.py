@@ -60,6 +60,8 @@ ALLOWED_EVENTS = {
     "quota_hit", "upgrade_cta_shown", "upgrade_cta_tapped",
     # Recommendations
     "recommendation_shown", "recommendation_actioned",
+    # Demo mode toggle
+    "demo_mode_toggled",
     # Experiments (reserved for future)
     "exposure_recorded",
     # Generic screen view (catchall)

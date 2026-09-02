@@ -97,7 +97,9 @@ export default function Portfolio() {
           <View style={styles.vsep} />
           <View style={styles.summaryCol}>
             <Text style={styles.summaryLabel}>Margin</Text>
-            <Text style={styles.summaryValue}>{((data.total_profit_mtd / data.total_revenue_mtd) * 100).toFixed(0)}%</Text>
+            <Text style={styles.summaryValue}>
+              {data.total_revenue_mtd ? ((data.total_profit_mtd / data.total_revenue_mtd) * 100).toFixed(0) : '0'}%
+            </Text>
           </View>
         </View>
       </SafeAreaView>

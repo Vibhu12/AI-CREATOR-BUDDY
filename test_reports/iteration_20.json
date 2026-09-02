@@ -1,0 +1,43 @@
+{
+  "summary": "Tested the new demo_mode toggle feature end-to-end. Backend: full regression suite 123/123 passed (107 pre-existing + 16 new tests written for demo_mode covering dashboard/portfolio/finance/goals/content/recommendations/notifications/asset-detail in both demo_mode states, the critical create->edit->delete-goal-while-demo_mode=true regression, PATCH /profile/demo-mode round-trip, toggle-back-on restoring Maya, and /dev/reseed preserving real data). Frontend: verified via Playwright with an injected session token (Emergent Google Auth can't be automated headlessly) — demo_mode=true dashboard shows exact legacy Maya hero (87/91/84/88/79, 2 alerts); toggling off on Dashboard shows correct 0/empty zero-state with 'No real data yet' message and no alerts; Profile screen mirrored toggle works and correctly reflects state on full page load. Found 2 real bugs (see below).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Portfolio screen (app/(tabs)/portfolio.tsx)", "issue": "When demo_mode=false and asset_count=0, the Margin summary card displays 'NaN%' instead of '0%' — classic 0/0 division-by-zero not guarded in the frontend calculation.", "testID": "N/A - visible in portfolio summary header", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Cross-tab demo_mode sync (Profile <-> Dashboard)", "issue": "Toggling demo mode via the Profile screen's switch correctly updates the Profile UI immediately (via refreshUser()) and persists correctly server-side (confirmed via full page reload), but the Dashboard tab does NOT reflect the change when navigated to via in-app tab press (SPA navigation) — it keeps showing the stale hero score/toggle state from its last load() call. Only a full page reload (or manual pull-to-refresh on Dashboard) picks up the new state. Root cause: Dashboard's useEffect(() => { load() }, [load]) only runs on mount; Expo Router keeps tab screens mounted so switching tabs doesn't remount/reload Dashboard, and there's no listener for user.demo_mode changes from AuthContext or route focus event.", "affected_testIDs": ["demo-mode-toggle", "profile-demo-mode-toggle", "hero-score"]}
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v15_demo_mode.py",
+    "/app/test_reports/pytest/pytest_iter20_full.xml",
+    "/app/test_reports/pytest/pytest_iter20_demo.xml"
+  ],
+  "action_items": [
+    "HIGH: Fix Dashboard <-> Profile demo_mode sync — Dashboard should re-fetch (or at least reconcile with user.demo_mode) when the tab regains focus, e.g. via Expo Router's useFocusEffect, or by having Dashboard read/react to AuthContext's user.demo_mode instead of only its own last-fetched dashboard.demo_mode. Currently a real user toggling on Profile then tapping Home tab sees incorrect stale data until a manual refresh.",
+    "MEDIUM: Fix Portfolio screen's Margin card to show '0%' instead of 'NaN%' when revenue is 0 (guard the division, same pattern already correctly handled server-side in GET /finance and GET /dashboard).",
+    "Verify: Toggle-back-to-demo_mode=true after being false correctly restores Maya's data with zero loss — CONFIRMED working (backend test_c9 + manual Playwright full-reload check both pass)."
+  ],
+  "critical_code_review_comments": [
+    "demo_filter()/_demo_filter() asymmetric design (no filter when demo_mode=True, filter to is_demo!=True when False) is correctly implemented and consistently applied across server.py and strategy.py. The critical regression scenario (create/edit/delete a real goal while demo_mode=true) was explicitly tested and works correctly.",
+    "seed_user_starter's idempotency check now correctly counts only is_demo:True assets, and /dev/reseed only deletes is_demo:True records per collection — verified via test that a real user-created goal survives a reseed call.",
+    "_compute_real_hero() in server.py correctly returns an honest 0-score object with 0-value breakdown when assets list is empty, matching the frontend's expectations exactly.",
+    "GET /finance's zero-state early-return (30-day zero series + 90-day zero projection + empty transactions/expense_categories) is honest and consistent with demo_mode=false + no real assets — verified matches what the UI displays.",
+    "Minor DRY note (not a functional bug): demo_filter() in server.py and _demo_filter() in strategy.py are byte-for-byte duplicates across two files — acceptable per the code's own comment ('kept local to avoid cross-module import'), but worth a shared util module if a third router needs it."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v15_demo_mode.py"
+  ],
+  "success_rate": {"backend": "100% (123/123 pytest, 16 new for this feature)", "frontend": "~90% (core demo_mode toggle flow, zero-states, and persistence across full reloads all work correctly; 1 cross-tab sync bug + 1 NaN% display bug found)"},
+  "seed_data_creation": "Created throwaway MongoDB user 'user_playwright_demo_test' (demo_mode toggle testing via injected session token bypassing Google OAuth) and a module-scoped pytest fixture user 'user_demotest_*' with full teardown in test_v15_demo_mode.py.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend demo_mode logic is fully correct and well-tested (123/123). The 2 frontend bugs found are both low-risk/cosmetic-ish but real: (1) Dashboard doesn't refresh when demo_mode is toggled from the Profile screen without a full page reload — this could confuse a real user who toggles on Profile then taps Home expecting to see their real data immediately. (2) Portfolio shows 'NaN%' margin instead of '0%' when there are 0 real assets in demo_mode=false. Neither blocks the core feature (toggle correctly persists server-side and is picked up correctly on any fresh load/refresh), so did not attempt to fix since these are React Native component/state-management changes outside the 'safe to auto-fix' scope. AI Coach and Strategy Planner behavior in demo_mode=false was spot-checked (coach greeting/UI loads fine with 0 data); did not run a full live LLM generation cycle in this pass since strategy/coach grounding logic was already deeply verified in iteration_19 and is unchanged by this feature (it reuses the same demo_filter as the rest of the app).",
+  "rca_of_issue": "Dashboard staleness bug RCA: app/(tabs)/index.tsx's `load()` is only invoked inside a useEffect with an empty-ish dependency array on mount ([load, loadNotifs]), and Expo Router by default keeps tab screens alive/mounted rather than unmounting on tab switch, so navigating away and back does not remount Dashboard nor re-run its effect. Profile's onToggleDemo calls api.setDemoMode() + refreshUser() (updates AuthContext.user) but Dashboard doesn't subscribe to AuthContext.user.demo_mode at all — it only trusts its own last dashboard-API response's demo_mode field. Fix suggestion: add a useFocusEffect (from @react-navigation/native, already a transitive Expo Router dependency) around load() so Dashboard refetches every time the tab is focused, or lift demo_mode into AuthContext/global state as the single source of truth that both screens read."
+}
