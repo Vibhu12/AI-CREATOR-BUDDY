@@ -86,9 +86,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         const sid = parseSessionId(window.location.href);
         if (sid) {
+          // Always strip the one-time session_id/state fragment from the
+          // URL right away, whether the exchange succeeds or fails. If we
+          // only clean it up on success, a failed/expired attempt (e.g.
+          // "Invalid state parameter" from a stale or duplicate sign-in
+          // attempt) leaves a dead session_id sitting in the address bar —
+          // a reload or retry from that URL can then confuse the next
+          // attempt instead of starting a clean one.
+          window.history.replaceState(null, '', window.location.pathname);
           const ok = await completeAuth(sid);
           if (ok) {
-            window.history.replaceState(null, '', window.location.pathname);
             if (alive) setLoading(false);
             return;
           }

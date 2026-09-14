@@ -63,6 +63,7 @@ EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
 async def lifespan(app_: FastAPI):
     # Startup
     await ensure_indexes(db)
+    await backfill_legacy_demo_tags()
     # SEC-002: shout loudly if DEMO_MODE is on — must be false in production.
     # Secure by default: absent/unset DEMO_MODE now means OFF, not ON.
     if os.environ.get("DEMO_MODE", "false").strip().lower() == "true":
@@ -346,6 +347,45 @@ async def seed_user_starter(user_id: str) -> None:
         "is_demo": True,
     })
     log.info("seeded starter data for %s", user_id)
+
+
+LEGACY_ASSET_NAMES = [a["name"] for a in STARTER_ASSETS]
+LEGACY_GOAL_TITLES = [g["title"] for g in STARTER_GOALS]
+LEGACY_CONTENT_TITLES = [c["title"] for c in STARTER_CONTENT]
+LEGACY_REC_TITLES = [r["title"] for r in STARTER_RECS]
+LEGACY_NOTIF_TITLES = [n["title"] for n in STARTER_NOTIFICATIONS]
+LEGACY_CHAT_TEXTS = [m["text"] for m in STARTER_CHAT]
+LEGACY_PLAN_TITLE = STARTER_PLAN["title"]
+
+
+async def backfill_legacy_demo_tags() -> None:
+    """Accounts created before the demo_mode toggle existed had their
+    auto-seeded Maya starter data written WITHOUT the `is_demo` flag, so
+    demo_filter() can't tell it apart from real data — toggling demo_mode
+    off silently does nothing for those users (Maya's data stays visible,
+    possibly mixed in with anything they've genuinely added since).
+    This retags those specific records by their exact persona-specific
+    name/title/text — values a real user's own data cannot coincidentally
+    match — as is_demo: True. Safe to run on every startup: idempotent,
+    only touches documents that don't already have is_demo set."""
+    ops = [
+        (db.assets, "name", LEGACY_ASSET_NAMES),
+        (db.goals, "title", LEGACY_GOAL_TITLES),
+        (db.content, "title", LEGACY_CONTENT_TITLES),
+        (db.recommendations, "title", LEGACY_REC_TITLES),
+        (db.notifications, "title", LEGACY_NOTIF_TITLES),
+        (db.chat_messages, "text", LEGACY_CHAT_TEXTS),
+        (db.strategy_plans, "title", [LEGACY_PLAN_TITLE]),
+    ]
+    total = 0
+    for coll, field, values in ops:
+        r = await coll.update_many(
+            {field: {"$in": values}, "is_demo": {"$ne": True}},
+            {"$set": {"is_demo": True}},
+        )
+        total += r.modified_count
+    if total:
+        log.info("backfilled is_demo tag on %d legacy seed records", total)
 
 
 def demo_filter(user: dict) -> dict:
