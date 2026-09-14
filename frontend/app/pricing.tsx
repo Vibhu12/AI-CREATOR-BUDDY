@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator, Modal,
+  View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator, Modal, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -13,6 +13,7 @@ import { useAuth } from '@/src/auth/AuthContext';
 import { track } from '@/src/services/analytics';
 
 type CheckoutPhase = 'idle' | 'creating' | 'method' | 'processing' | 'success' | 'error';
+type Provider = 'stripe' | 'paypal' | 'razorpay';
 
 export default function Pricing() {
   const router = useRouter();
@@ -21,25 +22,66 @@ export default function Pricing() {
   const [current, setCurrent] = useState<string>(user?.tier ?? 'free');
   const [paypalLive, setPaypalLive] = useState<boolean>(false);
   const [paypalMode, setPaypalMode] = useState<string | null>(null);
+  const [razorpayLive, setRazorpayLive] = useState<boolean>(false);
+
+  // demo_mode (per-user sample-data toggle) also gates which "card"
+  // payment option is shown: demo → the existing simulated Stripe flow;
+  // real (demo_mode off) → the real Razorpay flow. Neither should mislead
+  // a user who's looking at their real data with a fake charge.
+  const isDemoMode = user?.demo_mode ?? true;
 
   // Checkout state
   const [checkoutTier, setCheckoutTier] = useState<any>(null);
   const [phase, setPhase] = useState<CheckoutPhase>('idle');
   const [session, setSession] = useState<any>(null);
-  const [provider, setProvider] = useState<'stripe' | 'paypal'>('stripe');
+  const [provider, setProvider] = useState<Provider>('stripe');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [returnBanner, setReturnBanner] = useState<{ ok: boolean; tier?: string } | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
-        const [plans, plan, pp] = await Promise.all([
-          api.billingPlans(), api.billingPlan(), api.paypalConfig(),
+        const [plans, plan, pp, rp] = await Promise.all([
+          api.billingPlans(), api.billingPlan(), api.paypalConfig(), api.razorpayConfig(),
         ]);
         setTiers(plans.tiers);
         setCurrent(plan.tier);
         setPaypalLive(!!pp.configured);
         setPaypalMode(pp.mode);
+        setRazorpayLive(!!rp.configured);
       } catch (e) { console.warn(e); }
+    })();
+  }, []);
+
+  // Web-only: Razorpay's hosted checkout does a full-page redirect away from
+  // the app, then our backend redirects the browser back here with
+  // ?razorpay_status=...&reference_id=... after verifying the payment
+  // server-side. The whole SPA remounted, so any in-memory checkout state
+  // (phase/session) from before the redirect is gone — reconstruct the
+  // result from the URL + a status poll instead.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('razorpay_status');
+    const referenceId = params.get('reference_id');
+    if (!status || !referenceId) return;
+    window.history.replaceState(null, '', window.location.pathname);
+    (async () => {
+      try {
+        const s = await api.razorpaySessionStatus(referenceId);
+        if (s.status === 'complete') {
+          await refreshUser();
+          setCurrent(s.tier);
+          setReturnBanner({ ok: true, tier: s.tier });
+          track('checkout_completed', { tier: s.tier, provider: 'razorpay', real: true });
+        } else {
+          setReturnBanner({ ok: false });
+          track('checkout_failed', { provider: 'razorpay', reason: 'not_completed' });
+        }
+      } catch (e) {
+        console.warn(e);
+        setReturnBanner({ ok: false });
+      }
     })();
   }, []);
 
@@ -47,10 +89,10 @@ export default function Pricing() {
     if (tier.id === current) return;
     if (tier.price_monthly === 0) return;
     setCheckoutTier(tier);
-    setProvider('stripe');
+    setProvider(isDemoMode ? 'stripe' : 'razorpay');
     setErrorMsg(null);
     setPhase('method');
-    track('checkout_started', { tier: tier.id, price: tier.price_monthly });
+    track('checkout_started', { tier: tier.id, price: tier.price_monthly, demo_mode: isDemoMode });
   };
 
   const runStripeCheckout = async () => {
@@ -124,9 +166,64 @@ export default function Pricing() {
     }
   };
 
+  const runRazorpayCheckout = async () => {
+    // Real Razorpay flow: create a payment link → open Razorpay's hosted
+    // page → backend verifies the signature server-side on callback before
+    // ever flipping the tier.
+    setPhase('creating');
+    track('checkout_method_selected', { tier: checkoutTier.id, provider: 'razorpay', live: razorpayLive });
+    const t0 = Date.now();
+    try {
+      if (!razorpayLive) {
+        setErrorMsg('Real payments are not configured on this server yet.');
+        setPhase('error');
+        track('checkout_failed', { tier: checkoutTier.id, provider: 'razorpay', reason: 'not_configured' });
+        return;
+      }
+      const returnUrl = Platform.OS === 'web'
+        ? (typeof window !== 'undefined' ? window.location.origin + window.location.pathname : '')
+        : Linking.createURL('razorpay/return');
+      const s = await api.razorpayCreateLink(checkoutTier.id, returnUrl);
+      setSession(s);
+      setPhase('processing');
+
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined') window.location.href = s.short_url;
+        return; // full-page navigation away — result picked up on return by URL params
+      }
+
+      const result = await WebBrowser.openAuthSessionAsync(s.short_url, returnUrl);
+      if (result.type !== 'success' || !result.url) {
+        setErrorMsg('Payment was cancelled or dismissed.');
+        setPhase('error');
+        track('checkout_cancelled', { tier: checkoutTier.id, provider: 'razorpay' });
+        return;
+      }
+      const cb = new URL(result.url);
+      const referenceId = cb.searchParams.get('reference_id') || s.reference_id;
+      const statusRes = await api.razorpaySessionStatus(referenceId);
+      if (statusRes.status !== 'complete') {
+        setErrorMsg('Payment could not be verified. Please try again.');
+        setPhase('error');
+        track('checkout_failed', { tier: checkoutTier.id, provider: 'razorpay', reason: 'unverified' });
+        return;
+      }
+      await refreshUser();
+      setCurrent(statusRes.tier);
+      setPhase('success');
+      track('checkout_completed', { tier: statusRes.tier, provider: 'razorpay', real: true, ms: Date.now() - t0 });
+      setTimeout(() => { setPhase('idle'); setCheckoutTier(null); setSession(null); }, 1600);
+    } catch (e: any) {
+      setErrorMsg(e?.message ?? 'Razorpay checkout failed');
+      setPhase('error');
+      track('checkout_failed', { tier: checkoutTier.id, provider: 'razorpay', reason: 'exception' });
+    }
+  };
+
   const confirmCheckout = () => {
     setErrorMsg(null);
     if (provider === 'paypal') runPayPalCheckout();
+    else if (provider === 'razorpay') runRazorpayCheckout();
     else runStripeCheckout();
   };
 
@@ -153,6 +250,24 @@ export default function Pricing() {
       </SafeAreaView>
 
       <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+        {returnBanner && (
+          <View style={[styles.returnBanner, returnBanner.ok ? styles.returnBannerOk : styles.returnBannerFail]}>
+            <Ionicons
+              name={returnBanner.ok ? 'checkmark-circle' : 'alert-circle'}
+              size={16}
+              color={returnBanner.ok ? colors.success : colors.error}
+            />
+            <Text style={styles.returnBannerText}>
+              {returnBanner.ok
+                ? `Payment verified — you're now on ${returnBanner.tier}.`
+                : `Payment didn't complete. You haven't been charged — try again.`}
+            </Text>
+            <Pressable onPress={() => setReturnBanner(null)} testID="return-banner-dismiss">
+              <Ionicons name="close" size={16} color={colors.onSurfaceSecondary} />
+            </Pressable>
+          </View>
+        )}
+
         <Text style={styles.hero}>Run your creator business like a $10M SaaS.</Text>
         <Text style={styles.heroSub}>
           Cancel anytime. Upgrades are instant. Downgrades take effect next cycle.
@@ -224,9 +339,11 @@ export default function Pricing() {
         <View style={styles.note}>
           <Ionicons name="shield-checkmark-outline" size={14} color={colors.brand} />
           <Text style={styles.noteText}>
-            {paypalLive
-              ? `PayPal is live in ${paypalMode} mode. Stripe checkout is simulated.`
-              : 'Powered by Stripe and PayPal. Checkout is simulated for demo — plug in real keys anytime.'}
+            {isDemoMode
+              ? 'Demo mode is on — checkout here is simulated. Turn off Demo mode in Profile for a real Razorpay charge (test mode).'
+              : razorpayLive
+                ? 'Demo mode is off — checkout below is a real Razorpay payment (test mode). PayPal is also available.'
+                : 'Demo mode is off, but real payments aren\u2019t configured on this server yet.'}
           </Text>
         </View>
       </ScrollView>
@@ -241,6 +358,8 @@ export default function Pricing() {
         onClose={closeCheckout}
         paypalLive={paypalLive}
         paypalMode={paypalMode}
+        razorpayLive={razorpayLive}
+        isDemoMode={isDemoMode}
         errorMsg={errorMsg}
         onRetry={() => setPhase('method')}
       />
@@ -251,17 +370,19 @@ export default function Pricing() {
 
 function CheckoutModal({
   tier, phase, session, provider, setProvider, onConfirm, onClose,
-  paypalLive, paypalMode, errorMsg, onRetry,
+  paypalLive, paypalMode, razorpayLive, isDemoMode, errorMsg, onRetry,
 }: {
   tier: any;
   phase: CheckoutPhase;
   session: any;
-  provider: 'stripe' | 'paypal';
-  setProvider: (p: 'stripe' | 'paypal') => void;
+  provider: Provider;
+  setProvider: (p: Provider) => void;
   onConfirm: () => void;
   onClose: () => void;
   paypalLive: boolean;
   paypalMode: string | null;
+  razorpayLive: boolean;
+  isDemoMode: boolean;
   errorMsg: string | null;
   onRetry: () => void;
 }) {
@@ -298,15 +419,28 @@ function CheckoutModal({
             <>
               <Text style={styles.pickerLabel}>Payment method</Text>
               <View style={{ gap: spacing.sm }}>
-                <PaymentOption
-                  id="stripe"
-                  name="Card via Stripe"
-                  desc="Visa, Mastercard, Amex"
-                  icon="card"
-                  color="#635BFF"
-                  selected={provider === 'stripe'}
-                  onPress={() => setProvider('stripe')}
-                />
+                {isDemoMode ? (
+                  <PaymentOption
+                    id="stripe"
+                    name="Card via Stripe (demo)"
+                    desc="Simulated — no real charge while Demo mode is on"
+                    icon="card"
+                    color="#635BFF"
+                    selected={provider === 'stripe'}
+                    onPress={() => setProvider('stripe')}
+                  />
+                ) : (
+                  <PaymentOption
+                    id="razorpay"
+                    name={razorpayLive ? 'Razorpay · TEST' : 'Razorpay'}
+                    desc={razorpayLive ? 'Real Razorpay Checkout (test mode)' : 'Not configured yet'}
+                    icon="card"
+                    color="#3395FF"
+                    selected={provider === 'razorpay'}
+                    onPress={() => setProvider('razorpay')}
+                    live={razorpayLive}
+                  />
+                )}
                 <PaymentOption
                   id="paypal"
                   name={paypalLive ? `PayPal · ${(paypalMode ?? 'live').toUpperCase()}` : 'PayPal'}
@@ -325,7 +459,9 @@ function CheckoutModal({
               <Text style={styles.disclaimer}>
                 {provider === 'paypal' && paypalLive
                   ? `PayPal will open in a secure browser window for approval.`
-                  : `Your subscription auto-renews monthly. Cancel anytime in Profile.`}
+                  : provider === 'razorpay' && razorpayLive
+                    ? `You'll be taken to Razorpay's secure checkout page (test mode, charged in ₹).`
+                    : `Your subscription auto-renews monthly. Cancel anytime in Profile.`}
               </Text>
             </>
           )}
@@ -352,7 +488,7 @@ function CheckoutModal({
             <View style={styles.processingBlock}>
               <ActivityIndicator size="large" color={colors.brand} />
               <Text style={styles.processingTitle}>
-                {phase === 'creating' ? 'Creating checkout…' : `Confirming with ${provider === 'stripe' ? 'Stripe' : 'PayPal'}…`}
+                {phase === 'creating' ? 'Creating checkout…' : `Confirming with ${provider === 'stripe' ? 'Stripe' : provider === 'razorpay' ? 'Razorpay' : 'PayPal'}…`}
               </Text>
               <Text style={styles.processingSub}>
                 {phase === 'creating' ? 'Setting up secure session' : 'Processing your payment'}
@@ -481,6 +617,16 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth, borderColor: colors.brand,
   },
   noteText: { color: colors.onSurface, fontSize: 11, flex: 1, lineHeight: 16 },
+
+  returnBanner: {
+    flexDirection: 'row', gap: spacing.sm, alignItems: 'center',
+    marginBottom: spacing.lg, padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  returnBannerOk: { backgroundColor: 'rgba(69,201,122,0.12)', borderColor: 'rgba(69,201,122,0.4)' },
+  returnBannerFail: { backgroundColor: 'rgba(229,72,77,0.1)', borderColor: 'rgba(229,72,77,0.35)' },
+  returnBannerText: { color: colors.onSurface, fontSize: 12, flex: 1, lineHeight: 17 },
 
   // Checkout modal
   modalBackdrop: {

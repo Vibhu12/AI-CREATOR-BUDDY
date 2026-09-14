@@ -32,6 +32,7 @@ BURST_LIMITS = {
     "chat": (30, 60),         # 30 chat messages / 60 sec
     "strategy": (5, 3600),    # 5 plans / hour
     "paypal_order": (10, 3600),  # 10 order creations / hour
+    "razorpay_link": (10, 3600),  # 10 payment link creations / hour
 }
 
 
@@ -120,3 +121,8 @@ async def enforce_strategy_plan(db, user: dict[str, Any]) -> None:
 def enforce_paypal_order(user: dict[str, Any]) -> None:
     """Burst limit only — pricing is server-authoritative in TIERS."""
     check_burst(user["user_id"], "paypal_order")
+
+
+def enforce_razorpay_link(user: dict[str, Any]) -> None:
+    """Burst limit only — pricing is server-authoritative in TIERS."""
+    check_burst(user["user_id"], "razorpay_link")

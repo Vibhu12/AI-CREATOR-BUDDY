@@ -122,6 +122,15 @@ export const api = {
     body: JSON.stringify({ order_id }),
   }).then(json),
 
+  // Razorpay Payment Links (real checkout, shown when demo_mode is off)
+  razorpayConfig:     () => authFetch(`/api/billing/razorpay/status`).then(json),
+  razorpayCreateLink: (tier: string, return_url: string) => authFetch(`/api/billing/razorpay/create-link`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tier, return_url, callback_base_url: BASE }),
+  }).then(json),
+  razorpaySessionStatus: (reference_id: string) => authFetch(`/api/billing/razorpay/status/${reference_id}`).then(json),
+
   // Analytics
   trackEvents: (events: any[]) => authFetch(`/api/analytics/events`, {
     method: 'POST',

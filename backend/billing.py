@@ -13,6 +13,12 @@ Endpoints:
   POST /billing/paypal/create-order      → real PayPal Orders v2 order (needs env keys)
   POST /billing/paypal/capture           → capture real order + flip tier
   GET  /billing/paypal/status            → { configured, mode }
+  GET  /billing/razorpay/status          → { configured }
+  POST /billing/razorpay/create-link     → real Razorpay Payment Link (needs env keys)
+  GET  /billing/razorpay/callback        → PUBLIC, hit by the user's browser after
+                                            paying on Razorpay's hosted page. Verifies
+                                            the signature, flips the tier, redirects back.
+  GET  /billing/razorpay/status/{ref}    → poll session status after a web redirect
   POST /billing/upgrade                  → legacy direct upgrade (kept for compat)
 """
 from __future__ import annotations
@@ -24,13 +30,16 @@ import os
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Literal, Optional
+from urllib.parse import urlencode
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 import paypal_client
-from quotas import enforce_paypal_order
+import razorpay_client
+from quotas import enforce_paypal_order, enforce_razorpay_link
 
 log = logging.getLogger("billing")
 
@@ -144,6 +153,14 @@ class PayPalCreateRequest(BaseModel):
 
 class PayPalCaptureRequest(BaseModel):
     order_id: str
+
+
+class RazorpayCreateRequest(BaseModel):
+    tier: str
+    return_url: str  # Where to send the browser back to after payment (web origin or deep link)
+    callback_base_url: str  # Our own public API origin — same EXPO_PUBLIC_BACKEND_URL the
+    # client already uses for every other request; needed because Razorpay's hosted page
+    # redirects the browser directly (no Authorization header available to tell us "where").
 
 
 def make_billing_router(db, current_user):
@@ -373,6 +390,132 @@ def make_billing_router(db, current_user):
             "capture_id": capture_id,
             "mocked": False,
         }
+
+    # -----------------------------------------------------------------------
+    # Razorpay Payment Links — real integration (dormant when keys not set)
+    # -----------------------------------------------------------------------
+    @router.get("/razorpay/status")
+    async def razorpay_status(user: dict = Depends(current_user)):
+        return {"configured": razorpay_client.is_configured()}
+
+    @router.post("/razorpay/create-link")
+    async def razorpay_create_link(req: RazorpayCreateRequest, user: dict = Depends(current_user)):
+        """Creates a real Razorpay Payment Link for the given tier. The tier is
+        flipped ONLY by the signature-verified /razorpay/callback below — never
+        from anything the client claims here."""
+        if req.tier not in TIERS or TIERS[req.tier]["price_monthly"] == 0:
+            raise HTTPException(400, f"Cannot checkout tier '{req.tier}'")
+        if not razorpay_client.is_configured():
+            raise HTTPException(503, "Razorpay is not configured on this server")
+
+        enforce_razorpay_link(user)
+        if not _is_safe_callback_url(req.return_url):
+            raise HTTPException(400, "return_url must use https:// or an app deep-link scheme")
+
+        amount_usd = TIERS[req.tier]["price_monthly"]
+        description = f"CreatorOS {TIERS[req.tier]['name']} — monthly subscription"
+        reference_id = f"rzp_{user['user_id'][:8]}_{uuid.uuid4().hex[:16]}"
+        # Razorpay redirects the user's browser to callback_url after payment —
+        # that must be OUR public API (to verify the signature), which then
+        # redirects again to the caller's own return_url.
+        if not req.callback_base_url.strip().lower().startswith("https://"):
+            raise HTTPException(400, "callback_base_url must be an https:// URL")
+        callback_url = f"{req.callback_base_url.rstrip('/')}/api/billing/razorpay/callback"
+
+        try:
+            link = await razorpay_client.create_payment_link(
+                amount_usd=amount_usd,
+                description=description,
+                reference_id=reference_id,
+                callback_url=callback_url,
+                notes={"user_id": user["user_id"], "tier": req.tier},
+            )
+        except httpx.HTTPStatusError as e:
+            log.exception("Razorpay create_payment_link failed: %s", e.response.text if e.response else e)
+            raise HTTPException(502, "Razorpay payment link creation failed")
+        except Exception:
+            log.exception("Razorpay error")
+            raise HTTPException(502, "Razorpay payment link creation failed")
+
+        await db.checkout_sessions.insert_one({
+            "session_id": reference_id,
+            "reference_id": reference_id,
+            "razorpay_payment_link_id": link["id"],
+            "user_id": user["user_id"],
+            "tier": req.tier,
+            "provider": "razorpay",
+            "amount": amount_usd,
+            "amount_paise": link["amount_paise"],
+            "currency": "inr",
+            "status": "pending",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "return_url": req.return_url,
+            "checkout_url": link["short_url"],
+        })
+        return {"reference_id": reference_id, "short_url": link["short_url"], "amount_paise": link["amount_paise"]}
+
+    @router.get("/razorpay/callback")
+    async def razorpay_callback(
+        razorpay_payment_id: str = "",
+        razorpay_payment_link_id: str = "",
+        razorpay_payment_link_reference_id: str = "",
+        razorpay_payment_link_status: str = "",
+        razorpay_signature: str = "",
+    ):
+        """PUBLIC — Razorpay redirects the paying user's browser here after
+        checkout (no Authorization header available at this point). Verifies
+        the signature server-side before ever trusting the payment, then
+        redirects the browser on to the session's stored return_url."""
+        session = await db.checkout_sessions.find_one(
+            {"reference_id": razorpay_payment_link_reference_id, "provider": "razorpay"},
+            {"_id": 0},
+        )
+        return_url = session["return_url"] if session else None
+        ok = bool(session) and razorpay_client.verify_payment_link_signature(
+            payment_link_id=razorpay_payment_link_id,
+            reference_id=razorpay_payment_link_reference_id,
+            status=razorpay_payment_link_status,
+            payment_id=razorpay_payment_id,
+            signature=razorpay_signature,
+        )
+        if ok and razorpay_payment_link_status == "paid" and session["status"] != "complete":
+            await db.checkout_sessions.update_one(
+                {"reference_id": razorpay_payment_link_reference_id},
+                {"$set": {
+                    "status": "complete",
+                    "completed_at": datetime.now(timezone.utc).isoformat(),
+                    "razorpay_payment_id": razorpay_payment_id,
+                }},
+            )
+            await db.users.update_one(
+                {"user_id": session["user_id"]},
+                {"$set": {"tier": session["tier"], "tier_updated_at": datetime.now(timezone.utc)}},
+            )
+            log.info("Razorpay payment verified + tier flipped user=%s tier=%s",
+                      session["user_id"], session["tier"])
+            params = {"razorpay_status": "success", "reference_id": razorpay_payment_link_reference_id}
+        else:
+            log.warning("Razorpay callback failed verification or non-paid status ref=%s status=%s",
+                        razorpay_payment_link_reference_id, razorpay_payment_link_status)
+            params = {"razorpay_status": "failed", "reference_id": razorpay_payment_link_reference_id}
+
+        if not return_url or not _is_safe_callback_url(return_url):
+            # No safe place to send the browser back to — show a minimal result.
+            return {"ok": ok, "status": params["razorpay_status"]}
+        sep = "&" if "?" in return_url else "?"
+        return RedirectResponse(f"{return_url}{sep}{urlencode(params)}")
+
+    @router.get("/razorpay/status/{reference_id}")
+    async def razorpay_session_status(reference_id: str, user: dict = Depends(current_user)):
+        """Frontend polls this after a web redirect back from Razorpay (the
+        page fully reloaded, so in-memory checkout state was lost)."""
+        session = await db.checkout_sessions.find_one(
+            {"reference_id": reference_id, "user_id": user["user_id"], "provider": "razorpay"},
+            {"_id": 0},
+        )
+        if not session:
+            raise HTTPException(404, "Session not found")
+        return {"status": session["status"], "tier": session["tier"]}
 
     @router.post("/upgrade")
     async def upgrade(req: UpgradeRequest, user: dict = Depends(current_user)):

@@ -11,7 +11,7 @@ import { api } from '@/src/services/api';
 import { useAuth } from '@/src/auth/AuthContext';
 import { track } from '@/src/services/analytics';
 
-const STEPS = ['welcome', 'youtube', 'stripe', 'done'] as const;
+const STEPS = ['welcome', 'youtube', 'done'] as const;
 type Step = typeof STEPS[number];
 
 export default function Onboarding() {
@@ -88,7 +88,6 @@ export default function Onboarding() {
                 <View style={styles.checklist}>
                   {[
                     'Connect your YouTube channel (optional)',
-                    'Connect Stripe for live revenue (optional)',
                     'Meet your AI Coach',
                   ].map(t => (
                     <View key={t} style={styles.checkRow}>
@@ -176,29 +175,6 @@ export default function Onboarding() {
               </View>
             )}
 
-            {step === 'stripe' && (
-              <View style={styles.stepBlock}>
-                <View style={[styles.stepIcon, { backgroundColor: 'rgba(127,179,255,0.12)', borderColor: '#7FB3FF' }]}>
-                  <Ionicons name="card" size={26} color="#7FB3FF" />
-                </View>
-                <Text style={styles.kicker}>STEP 3 · STRIPE</Text>
-                <Text style={styles.headline}>Connect Stripe for live revenue</Text>
-                <Text style={styles.sub}>
-                  Once connected, your Finance tab shows real balance, payouts, and recent charges. We only read — never write.
-                </Text>
-                <View style={styles.stripeCard}>
-                  <Ionicons name="lock-closed" size={16} color={colors.brand} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.stripeCardTitle}>Coming soon</Text>
-                    <Text style={styles.stripeCardSub}>
-                      Stripe OAuth is being wired up. For now, we&apos;ll show your starter data.
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.skipHint}>Tap Finish to enter CreatorOS.</Text>
-              </View>
-            )}
-
             {step === 'done' && (
               <View style={styles.stepBlock}>
                 <View style={styles.stepIcon}>
@@ -225,11 +201,6 @@ export default function Onboarding() {
             )}
             <Pressable
               onPress={() => {
-                if (step === 'stripe') {
-                  track('onboarding_step_completed', { step });
-                  setStep('done');
-                  return;
-                }
                 if (step === 'done') {
                   track('onboarding_step_completed', { step });
                   finish();
@@ -248,7 +219,7 @@ export default function Onboarding() {
                 : (
                   <>
                     <Text style={styles.primaryBtnText}>
-                      {step === 'done' ? 'Enter CreatorOS' : step === 'stripe' ? 'Finish' : step === 'welcome' ? 'Get started' : 'Continue'}
+                      {step === 'done' ? 'Enter CreatorOS' : step === 'welcome' ? 'Get started' : 'Continue'}
                     </Text>
                     <Ionicons name="arrow-forward" size={16} color={colors.onBrandPrimary} />
                   </>
@@ -317,15 +288,6 @@ const styles = StyleSheet.create({
 
   warn: { color: colors.warning, fontSize: 12, marginTop: spacing.sm },
   skipHint: { color: colors.onSurfaceTertiary, fontSize: 11, marginTop: spacing.md },
-
-  stripeCard: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-    backgroundColor: colors.surfaceSecondary,
-    borderRadius: radius.md, padding: spacing.md, marginTop: spacing.md,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border,
-  },
-  stripeCardTitle: { color: colors.onSurface, fontSize: 13, fontWeight: '600' },
-  stripeCardSub: { color: colors.onSurfaceSecondary, fontSize: 12, marginTop: 2 },
 
   footer: { flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.md },
   primaryBtn: {

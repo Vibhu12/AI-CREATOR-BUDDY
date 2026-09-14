@@ -231,9 +231,6 @@ export default function Profile() {
               {reseeding ? 'Reloading…' : 'Reload Maya demo data'}
             </Text>
           </Pressable>
-          <Text style={styles.reseedCaption}>
-            Resets the sample dataset used by Demo mode above — your own real data is never touched.
-          </Text>
 
           <Pressable onPress={signOut} style={[styles.signOutBtn, { marginTop: spacing.sm }]} testID="sign-out-btn">
             <Ionicons name="log-out-outline" size={18} color={colors.error} />
@@ -290,7 +287,6 @@ const styles = StyleSheet.create({
   },
   demoModeTitle: { color: colors.onSurface, fontSize: 14, fontWeight: '600' },
   demoModeSub: { color: colors.onSurfaceTertiary, fontSize: 12, marginTop: 2 },
-  reseedCaption: { color: colors.onSurfaceTertiary, fontSize: 11, marginTop: spacing.xs, paddingHorizontal: 2 },
 
   section: { paddingHorizontal: spacing.lg, marginTop: spacing.xl },
   sectionTitle: { color: colors.onSurface, fontSize: 13, letterSpacing: 1.2, fontWeight: '600', marginBottom: spacing.md },
