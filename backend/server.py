@@ -25,6 +25,7 @@ import json
 import logging
 import os
 import random
+import re
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
@@ -85,6 +86,45 @@ log = logging.getLogger("creatoros")
 
 def now_utc() -> datetime:
     return datetime.now(timezone.utc)
+
+
+# AI Coach conversation "epochs" — a fresh empty chat greets you after a
+# period of inactivity, but stays fully continuous (UI + the LLM's own
+# memory) while you're actively chatting. Rationale: showing a stale
+# leftover conversation as the "default" every time you open the tab reads
+# as broken/unfinished; but wiping context mid-conversation would feel
+# forgetful. 30 minutes of inactivity ends an epoch.
+CHAT_IDLE_TIMEOUT = timedelta(minutes=30)
+
+
+async def _latest_chat_epoch(user_id: str, base_session: str) -> Optional[dict]:
+    """Most recent message under any epoch of this logical thread name."""
+    prefix = f"{user_id}::{base_session}"
+    docs = await db.chat_messages.find(
+        {"user_id": user_id, "session_id": {"$regex": f"^{re.escape(prefix)}"}},
+        {"_id": 0, "session_id": 1, "at": 1},
+    ).sort("at", -1).limit(1).to_list(1)
+    return docs[0] if docs else None
+
+
+def _epoch_is_fresh(last_at_iso: str) -> bool:
+    try:
+        last_at = datetime.fromisoformat(last_at_iso)
+        if last_at.tzinfo is None:
+            last_at = last_at.replace(tzinfo=timezone.utc)
+    except (ValueError, TypeError):
+        return False
+    return (now_utc() - last_at) < CHAT_IDLE_TIMEOUT
+
+
+async def _resolve_send_session(user_id: str, base_session: str) -> str:
+    """Which session_id a NEW outgoing message should be written under —
+    continues the latest epoch if still fresh, otherwise mints a new one so
+    the LLM (which keys its own memory off session_id) also starts clean."""
+    latest = await _latest_chat_epoch(user_id, base_session)
+    if latest and _epoch_is_fresh(latest["at"]):
+        return latest["session_id"]
+    return f"{user_id}::{base_session}::{int(now_utc().timestamp())}"
 
 
 # ---------------------------------------------------------------------------
@@ -955,7 +995,7 @@ async def ai_chat(req: ChatRequest, user: dict = Depends(current_user)):
     # SEC: enforce message length + free-tier daily quota + burst rate limit
     await enforce_chat_message(db, user, req.message)
 
-    scoped_session = f"{user['user_id']}::{req.session_id}"
+    scoped_session = await _resolve_send_session(user["user_id"], req.session_id)
 
     await db.chat_messages.insert_one({
         "id": str(uuid.uuid4()),
@@ -1007,10 +1047,14 @@ async def ai_chat(req: ChatRequest, user: dict = Depends(current_user)):
 
 @api.get("/ai/chat/history")
 async def chat_history(session_id: str, user: dict = Depends(current_user)):
-    scoped_session = f"{user['user_id']}::{session_id}"
-    # Same rule as every other collection: the toggle picks which universe
-    # of data you're looking at — demo_mode True shows Maya's seeded
-    # transcript, False shows only messages you actually sent yourself.
+    # An idle gap of 30+ minutes ends the conversation epoch — you get a
+    # clean, empty Coach instead of a stale leftover transcript every time
+    # you open the tab. Still actively chatting within that window? Full
+    # history + context, like any normal chat.
+    latest = await _latest_chat_epoch(user["user_id"], session_id)
+    if not latest or not _epoch_is_fresh(latest["at"]):
+        return {"messages": []}
+    scoped_session = latest["session_id"]
     msgs = await db.chat_messages.find(
         {"session_id": scoped_session, "user_id": user["user_id"], **demo_filter(user)},
         PROJECTION,
@@ -1020,8 +1064,10 @@ async def chat_history(session_id: str, user: dict = Depends(current_user)):
 
 @api.post("/ai/chat/reset")
 async def chat_reset(session_id: str, user: dict = Depends(current_user)):
-    scoped_session = f"{user['user_id']}::{session_id}"
-    await db.chat_messages.delete_many({"session_id": scoped_session, "user_id": user["user_id"]})
+    prefix = f"{user['user_id']}::{session_id}"
+    await db.chat_messages.delete_many(
+        {"user_id": user["user_id"], "session_id": {"$regex": f"^{re.escape(prefix)}"}}
+    )
     return {"ok": True}
 
 
