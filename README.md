@@ -88,6 +88,42 @@ API data when credentials are present, deterministic mock data derived
 from the handle when not. Mock payloads carry `"mocked": true`. This
 keeps the full journey testable without needing five API accounts.
 
+## AI engineering fundamentals — what's actually in this repo
+
+A few technical areas worth being specific about, since it's easy to
+namedrop them without having built anything. Only listing what's
+genuinely implemented here, not a buzzword checklist:
+
+- **Memory design.** AI Coach conversations are session-scoped with a
+  30-minute idle timeout (`server.py`). Keep chatting and it keeps full
+  context — both on screen and in the underlying LLM session. Go quiet
+  for 30+ minutes and the next message starts a clean slate instead of
+  dragging in a stale, unrelated conversation. Old turns are hidden, not
+  deleted.
+- **Evaluation frameworks.** `backend/evals/` is separate from the
+  correctness tests — it checks *output quality*: groundedness (is the
+  plan using the signed-in user's real numbers, not a cached persona),
+  scale-appropriateness (are the targets sane for that user's actual
+  revenue), and an LLM-as-judge pass using a *different* model (GPT-5.4
+  judging Claude-generated output, to avoid self-grading bias). It found
+  and documents a real, only partially-resolved issue: complex
+  multi-asset portfolios stay grounded ~33% of the time vs ~100% for
+  simple ones — written down honestly rather than hidden.
+- **Latency, cost & reliability tradeoffs.** Coach responses stream
+  token-by-token over SSE — the guardrail that matters is time-to-first-
+  token (target: under 2s, see `docs/metrics.md`), not total response
+  time. Cost is bounded with a free-tier daily/weekly quota (10
+  chats/day, 1 plan/week) plus a separate in-process burst limiter on
+  top of that. Every SSE stream has an explicit error frame, so a failed
+  LLM call surfaces as a retryable message, never a silent hang.
+
+Not in this repo, by scope rather than oversight: classic RAG (the
+Coach's grounding is direct structured-data injection from MongoDB, not
+vector embeddings/semantic search), autonomous multi-step agentic
+tool-calling, multi-agent orchestration, or a horizontally-distributed
+backend (the burst limiter is explicitly in-process/single-worker — see
+Known limitations).
+
 ## Architecture
 
 ```
