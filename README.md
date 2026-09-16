@@ -31,8 +31,28 @@ narrow-enough problem to prove that out on.
 | **Strategy Planner** | 30/60/90 roadmap as structured JSON: north star, KPIs, phases, risks |
 | **Goals** | Revenue, follower, subscriber and launch goals against targets |
 | **Competitor Benchmark** | Nine-dimension radar against top-1% and top-10% archetypes |
-| **Integrations** | YouTube, Instagram, Stripe, PayPal. Real APIs when keys are set, mocks when not |
-| **Billing** | Three tiers with quota enforcement, Stripe and PayPal checkout |
+| **Demo Mode** | Per-user toggle: see Maya's sample data, or only your own real data with honest empty states |
+| **Integrations** | YouTube, Instagram, Stripe (read), PayPal, Razorpay. Real APIs when keys are set, mocks when not |
+| **Billing** | Three tiers with quota enforcement. Real Razorpay + PayPal checkout, simulated Stripe demo checkout |
+
+## Recent updates
+
+- **Demo Mode toggle** (Dashboard + Profile) — switch between Maya's sample
+  business and your own real data at any time. Accounts created before this
+  feature existed are auto-migrated on the next backend restart, so old
+  seeded data is correctly tagged instead of leaking through as "real".
+- **Real Razorpay checkout (test mode)** — when Demo Mode is off, upgrading
+  to Pro/Studio opens a real Razorpay Payment Link, verified server-side by
+  signature before the tier is ever flipped. Demo Mode on still uses the
+  original simulated Stripe flow, clearly labelled as such.
+- **AI Coach conversation timeout** — a chat goes quiet for 30+ minutes, the
+  next visit opens a clean slate instead of resurfacing a stale transcript.
+  Stay actively chatting and it remembers full context, like any normal chat.
+- **Google Sign-In redirect fix** — the OAuth return route is now a real
+  Expo Router screen instead of hitting an unmatched-route error.
+- **Security hardening** — CORS locked to an explicit origin allowlist
+  (no more wildcard + credentials), `DEMO_MODE` defaults to off unless a
+  deployment opts in explicitly.
 
 ## Product decisions worth explaining
 
@@ -41,6 +61,13 @@ dashboard rather than an empty state, because a data-dependent product
 with no data cannot demonstrate its own value. All seeded records are
 labelled and dismissible. Onboarding then collects real handles and the
 integrations layer swaps live data in.
+
+**Demo Mode as an explicit, reversible toggle.** Rather than deleting
+the seed data once a user connects something real, every seeded record
+carries an `is_demo` flag and a single toggle switches which universe
+of data every screen reads from. Off means only what you actually
+entered or connected — down to an honest `0` / empty state if you
+haven't added anything yet, never a silent fallback to Maya's numbers.
 
 **Free tier gated by usage, not features.** Free users get the full
 dashboard, portfolio and finance layer, limited to 10 AI Coach messages
@@ -73,7 +100,8 @@ FastAPI
   |__ server.py        dashboard, portfolio, finance, goals, coach (SSE)
   |__ strategy.py      30/60/90 plans, schema-constrained, per-user grounded
   |__ integrations.py  YouTube | Instagram | Stripe | PayPal
-  |__ billing.py       tiers, checkout, PayPal orders
+  |__ billing.py       tiers, checkout, PayPal orders, Razorpay payment links
+  |__ razorpay_client.py  real Razorpay REST client + signature verification
   |__ quotas.py        tier quotas + burst limits
   |__ analytics.py     event ingestion, allowlist, PII scrub
   |__ competitors.py   nine-dimension benchmarking
@@ -107,8 +135,8 @@ accidentally ship with mock upgrades enabled.
 
 ## Testing
 
-107 tests across auth, quotas, billing, PayPal orders, goals and SSE
-streaming.
+142 tests across auth, quotas, billing, PayPal orders, Razorpay checkout,
+demo mode, AI Coach session handling, goals and SSE streaming.
 
 ```bash
 cd backend && pytest tests/ -v
@@ -124,7 +152,7 @@ calls, so it's run on demand rather than on every commit:
 cd backend && pytest evals/ -v -s
 ```
 
-Build and test history for all 18 iterations is in `docs/build-log/`,
+Build and test history for all iterations is in `docs/build-log/`,
 including the security pass at iteration 13.
 
 For a deeper look at the product thinking behind this: `docs/metrics.md`
@@ -143,8 +171,9 @@ decisions made while building this, with the trade-offs written down).
   Labelled as such in the UI.
 - Stripe's real checkout/payment flow is not yet built — the read side
   (balance/charges) supports a real key, but taking an actual card
-  payment via Stripe is still simulated. PayPal's real Orders v2 flow,
-  by contrast, is fully implemented and just needs credentials.
+  payment via Stripe is still simulated. PayPal's real Orders v2 flow and
+  Razorpay's real Payment Links flow, by contrast, are fully implemented
+  and just need credentials.
 
 ## How this was built
 
@@ -154,7 +183,7 @@ consequence of the build process described below, and I would rather
 disclose it upfront than have it discovered in `git log` without
 context.
 
-I built CreatorOS using Emergent, an AI app builder, across 18
+I built CreatorOS using Emergent, an AI app builder, across 20+
 iterations. That was deliberate: my constraint was time, not coding
 ability, and directing the build let me spend my hours on decisions
 rather than typing.
