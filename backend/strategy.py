@@ -14,7 +14,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage, StreamDone, TextDelta
+from emergentintegrations.llm.chat import LlmChat, UserMessage
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
@@ -83,6 +83,122 @@ STRATEGY_CONTEXT_TEMPLATE = (
     "not as a number you're asserting."
 )
 
+# --- Tool-calling: the model must go through these for any real number ---
+# rather than inventing derived unit-economics (e.g. "implying a course
+# price point by dividing revenue by an assumed enrollment count") in
+# free-form prose, which was the recurring failure mode measured by
+# evals/eval_llm_judge.py on complex multi-asset portfolios. See
+# evals/README.md "A real finding" for the before/after this was measured.
+MAX_TOOL_ROUNDS = 4
+
+TOOL_USAGE_RULES = (
+    "\n\nYou have two tools — use them, don't do math or fact-recall yourself:\n"
+    "1. get_portfolio_facts() — the ONLY source of truth for this user's real numbers. "
+    "Call it before writing any north_star or KPI target.\n"
+    "2. compute_metric(...) — the ONLY way to do arithmetic anywhere in this plan "
+    "(division, multiplication, percentages, addition, subtraction). Never compute a "
+    "derived number yourself in prose — e.g. an implied price point, a growth rate, a "
+    "conversion-driven projection. Always call compute_metric instead, and honestly "
+    "label each input's source: 'known_fact' only if it came directly from "
+    "get_portfolio_facts, or 'assumption' if you're estimating it (an enrollment count, "
+    "a conversion rate, anything not in the portfolio data). If compute_metric reports a "
+    "result as assumption_based, you MUST present that figure in the plan as a labelled "
+    "range with a verify-note (e.g. \"~$40-60 implied price point — estimate, verify "
+    "against your real funnel\"), never as a bare precise fact."
+)
+
+STRATEGY_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_portfolio_facts",
+            "description": (
+                "Returns this user's EXACT real business numbers — per-asset revenue, "
+                "profit and followers, plus totals and margin. The only ground-truth "
+                "source for any figure stated as fact in the plan. Call this before "
+                "writing north_star or KPI targets."
+            ),
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "compute_metric",
+            "description": (
+                "The only way to do arithmetic for this plan. Never compute a derived "
+                "figure yourself in prose — call this instead, and label each input's "
+                "source honestly."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "operation": {
+                        "type": "string",
+                        "enum": ["add", "subtract", "multiply", "divide", "percentage"],
+                        "description": "'percentage' returns a/b*100",
+                    },
+                    "a": {"type": "number"},
+                    "a_source": {
+                        "type": "string",
+                        "enum": ["known_fact", "assumption"],
+                        "description": "'known_fact' only if this value came directly from get_portfolio_facts",
+                    },
+                    "b": {"type": "number"},
+                    "b_source": {"type": "string", "enum": ["known_fact", "assumption"]},
+                    "label": {
+                        "type": "string",
+                        "description": "what this computes, e.g. 'implied course price point'",
+                    },
+                },
+                "required": ["operation", "a", "a_source", "b", "b_source", "label"],
+            },
+        },
+    },
+]
+
+
+def _exec_compute_metric(args: dict) -> dict:
+    op = args.get("operation")
+    try:
+        a = float(args.get("a", 0))
+        b = float(args.get("b", 0))
+    except (TypeError, ValueError):
+        return {"error": "'a' and 'b' must be numbers"}
+    if op == "add":
+        result = a + b
+    elif op == "subtract":
+        result = a - b
+    elif op == "multiply":
+        result = a * b
+    elif op == "divide":
+        result = (a / b) if b else 0.0
+    elif op == "percentage":
+        result = (a / b * 100) if b else 0.0
+    else:
+        return {"error": f"unknown operation '{op}'"}
+
+    assumption_based = args.get("a_source") == "assumption" or args.get("b_source") == "assumption"
+    return {
+        "label": args.get("label", ""),
+        "result": round(result, 2),
+        "assumption_based": assumption_based,
+        "instruction": (
+            "At least one input was an assumption — present this in the plan as a "
+            "labelled range with a verify-note, never as a bare precise fact."
+            if assumption_based else
+            "Both inputs were known facts — you may state this result as fact."
+        ),
+    }
+
+
+def _exec_tool(name: str, arguments: dict, facts: dict) -> dict:
+    if name == "get_portfolio_facts":
+        return facts
+    if name == "compute_metric":
+        return _exec_compute_metric(arguments or {})
+    return {"error": f"unknown tool '{name}'"}
+
 
 def _demo_filter(user: dict) -> dict:
     """Mirrors server.py's `demo_filter()` — kept local to avoid a
@@ -92,11 +208,43 @@ def _demo_filter(user: dict) -> dict:
     return {"is_demo": {"$ne": True}}
 
 
-async def _build_strategy_context(db, user: dict) -> str:
+async def _load_assets(db, user: dict) -> list[dict]:
+    return await db.assets.find({"user_id": user["user_id"], **_demo_filter(user)}, {"_id": 0}).to_list(100)
+
+
+def _facts_from_assets(assets: list[dict]) -> dict:
+    rev = sum(a.get("revenue_mtd", 0) for a in assets)
+    prof = sum(a.get("profit_mtd", 0) for a in assets)
+    margin = (prof / rev * 100) if rev else 0
+    return {
+        "assets": [
+            {
+                "name": a.get("name", "Untitled"),
+                "platform": a.get("platform", "unknown"),
+                "followers": a.get("followers", 0),
+                "revenue_mtd": round(a.get("revenue_mtd", 0), 2),
+                "profit_mtd": round(a.get("profit_mtd", 0), 2),
+            }
+            for a in assets
+        ],
+        "total_revenue_mtd": round(rev, 2),
+        "total_profit_mtd": round(prof, 2),
+        "margin_pct": round(margin, 1),
+        "note": (
+            "These are the ONLY real numbers that exist for this user. Anything else "
+            "(price points, conversion rates, enrollment counts, RPM/CPM/AOV, etc.) is "
+            "not tracked — treat it as an assumption if you reference it, never as fact."
+        ),
+    }
+
+
+async def _build_strategy_context(db, user: dict) -> tuple[str, dict]:
     """Builds a per-user context block for the Strategy Engine — mirrors the
     AI Coach's `_build_system_prompt` in server.py so plans are grounded in
-    THIS user's real portfolio, not a fixed demo persona."""
-    assets = await db.assets.find({"user_id": user["user_id"], **_demo_filter(user)}, {"_id": 0}).to_list(100)
+    THIS user's real portfolio, not a fixed demo persona. Also returns the
+    structured `facts` dict the get_portfolio_facts tool serves verbatim."""
+    assets = await _load_assets(db, user)
+    facts = _facts_from_assets(assets)
     if not assets:
         portfolio = "  (no assets yet — recommend how to launch the first one)"
     else:
@@ -105,16 +253,14 @@ async def _build_strategy_context(db, user: dict) -> str:
             f"{a.get('followers', 0):,} followers, ${a.get('revenue_mtd', 0):,.0f} MTD"
             for a in assets
         )
-    rev = sum(a.get("revenue_mtd", 0) for a in assets)
-    prof = sum(a.get("profit_mtd", 0) for a in assets)
-    margin = (prof / rev * 100) if rev else 0
-    return STRATEGY_SCHEMA + STRATEGY_CONTEXT_TEMPLATE.format(
+    system_prompt = STRATEGY_SCHEMA + TOOL_USAGE_RULES + STRATEGY_CONTEXT_TEMPLATE.format(
         name=user.get("name", "the creator"),
         portfolio=portfolio,
-        revenue=rev,
-        profit=prof,
-        margin=margin,
+        revenue=facts["total_revenue_mtd"],
+        profit=facts["total_profit_mtd"],
+        margin=facts["margin_pct"],
     )
+    return system_prompt, facts
 
 
 def make_strategy_router(db, api_key: str, current_user):
@@ -155,20 +301,39 @@ def make_strategy_router(db, api_key: str, current_user):
             + "Return JSON only matching the schema."
         )
 
-        system_prompt = await _build_strategy_context(db, user)
-        chat = LlmChat(
-            api_key=api_key,
-            session_id=f"strategy-{uuid.uuid4().hex[:8]}",
-            system_message=system_prompt,
-        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
+        system_prompt, facts = await _build_strategy_context(db, user)
+        chat = (
+            LlmChat(
+                api_key=api_key,
+                session_id=f"strategy-{uuid.uuid4().hex[:8]}",
+                system_message=system_prompt,
+            )
+            .with_model("anthropic", "claude-sonnet-4-5-20250929")
+            .with_tools(STRATEGY_TOOLS)
+        )
 
-        chunks: list[str] = []
-        async for ev in chat.stream_message(UserMessage(text=user_prompt)):
-            if isinstance(ev, TextDelta):
-                chunks.append(ev.content)
-            elif isinstance(ev, StreamDone):
-                break
-        raw = "".join(chunks).strip()
+        tool_call_count = 0
+        try:
+            resp = await chat.send_message_with_tools(UserMessage(text=user_prompt))
+            rounds = 0
+            while resp.tool_calls and rounds < MAX_TOOL_ROUNDS:
+                for tc in resp.tool_calls:
+                    result = _exec_tool(tc.name, tc.arguments, facts)
+                    tool_call_count += 1
+                    chat.add_tool_result(tc.id, json.dumps(result))
+                resp = await chat.send_message_with_tools()
+                rounds += 1
+        except HTTPException:
+            raise
+        except Exception as e:
+            log.exception("strategy tool-calling loop failed: %s", e)
+            raise HTTPException(502, "AI generation failed; retry")
+
+        raw = (resp.content or "").strip()
+        log.info(
+            "strategy plan generated user=%s horizon=%s tool_calls=%d",
+            user["user_id"], req.horizon_days, tool_call_count,
+        )
         if raw.startswith("```"):
             raw = raw.strip("`")
             if raw.startswith("json"):
@@ -187,6 +352,7 @@ def make_strategy_router(db, api_key: str, current_user):
             "focus": req.focus,
             "created_at": now_utc().isoformat(),
             "task_progress": {},
+            "tool_calls_used": tool_call_count,
             **data,
         }
         await db.strategy_plans.insert_one({**plan})
