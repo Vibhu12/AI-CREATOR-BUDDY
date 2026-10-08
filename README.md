@@ -8,7 +8,11 @@ strategist. CreatorOS gives them a portfolio view of their revenue
 assets, a finance layer, an AI coach that knows their actual numbers,
 and a generated 30/60/90 day plan.
 
-**[Live demo](https://business-ai-hub-47.preview.emergentagent.com)** — note: this is a temporary preview environment, not a permanent production URL yet.
+demo link - 
+https://drive.google.com/file/d/1vO9s9FecoARdyg-X4YAlVd6xn1DDrG7_/view?usp=drivesdk
+
+app link :
+https://business-ai-hub-47.preview.emergentagent.com/
 
 ![CreatorOS dashboard](docs/images/dashboard.png)
 
