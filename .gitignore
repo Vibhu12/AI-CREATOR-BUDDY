@@ -92,3 +92,6 @@ credentials.json
 .env
 .env.*
 *.env
+
+# Commit placeholder configuration only; real environment files stay local.
+!.env.example

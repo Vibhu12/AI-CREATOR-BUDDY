@@ -28,7 +28,6 @@ import re
 
 import httpx
 import pytest
-from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 BASE = os.environ["EXPO_PUBLIC_BACKEND_URL"].rstrip("/")
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
@@ -63,6 +62,9 @@ def _generate_plan(token: str) -> dict:
 
 
 async def _judge_async(portfolio_desc: str, plan: dict) -> dict:
+    # Paid provider dependency is needed at execution, not during collection.
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+
     chat = LlmChat(
         api_key=EMERGENT_LLM_KEY,
         session_id="eval-judge",

@@ -1,5 +1,9 @@
 # CreatorOS — Decision Log
 
+**Evidence status:** retrospective owner-reported decisions. Rationale is not
+user research; predicted effects are hypotheses. No external users or payment
+commitments have been established. See [the contribution map](portfolio/EVIDENCE.md).
+
 Twelve decisions, four lines each: what I decided, why, what I gave up,
 and whether I'd do it again. This exists because "tell me about a hard
 product decision" comes up in almost every PM interview, and a decision
@@ -260,7 +264,7 @@ workspaces (coming)," "White-label PDF reports (coming)," and "1:1 human
 review of Q&A plans (coming)" — three of its headline features are
 explicitly not built yet.
 
-**Why:** This was a demand test, not aspirational filler: I wanted to see
+**Why:** This was intended as a future demand test, not a completed experiment: I wanted to see
 whether anyone would commit money to a tier priced around *specific,
 named* future capabilities before spending time building any of them. If
 nobody upgrades to Studio, that's a cheap, honest signal not to build

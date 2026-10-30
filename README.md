@@ -243,3 +243,22 @@ tests validated that schema-conformant JSON came back. The output was
 fluent, structured, and wrong. That pushed me to build the eval suite in
 `backend/evals/`, which checks groundedness and scale-appropriateness
 rather than just whether the response parses.
+
+
+## Recruiter evidence guide
+
+**CreatorOS is an independently built working prototype. External creator
+validation, adoption, retention and revenue outcomes are not yet established.**
+
+Start with the [product case study](docs/portfolio/README.md), then follow the
+[evidence and contribution map](docs/portfolio/EVIDENCE.md). These distinguish
+implemented code, historical reports, design targets and work still to validate.
+
+- [Reproduce checks and evaluations](docs/portfolio/REPRODUCIBILITY.md)
+- [Current status and documentation corrections](docs/portfolio/STATUS.md)
+- [External validation protocol](docs/portfolio/VALIDATION.md)
+
+The headline suite count is **142 tests**. Collection and execution are different
+checks: this number is not a claim that a new full run passed. Older reports
+retain their original subset counts. See the reproduction guide for provenance,
+current verification and the prerequisites for live integration tests.

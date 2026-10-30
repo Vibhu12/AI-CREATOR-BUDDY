@@ -3,7 +3,11 @@
 Comprehensive engineering documentation for **CreatorOS**, the mobile-first
 business operating system for creators and digital entrepreneurs.
 
-Generated June 2026 · Reflects code state as of iteration 14.
+Design snapshots originated in June 2026. Current evidence review: 30 October 2026.
+
+Start with the [recruiter case study](portfolio/README.md),
+[evidence map](portfolio/EVIDENCE.md) and [current status](portfolio/STATUS.md).
+Design targets and reference experiments are not achieved results.
 
 ---
 
@@ -67,10 +71,9 @@ Generated June 2026 · Reflects code state as of iteration 14.
 
 - `/app/memory/PRD.md` — Original Product Requirements Document
 - `/app/docs/NEXT_STEPS.md` — Live backlog: integration activation, payment gateway status, feature roadmap
-- `/app/docs/build-log/README.md` — Human-readable iteration-by-iteration build history (18 iterations)
-- `/app/memory/test_credentials.md` — Test-user credentials
+- `/app/docs/build-log/README.md` — Human-readable iteration-by-iteration build history (historical iterations)
 - `/app/test_reports/iteration_*.json` — Historical test agent reports (raw)
-- `/app/backend/tests/` — Backend pytest suites (107 tests, 100% pass)
+- `/app/backend/tests/` — Backend pytest suite (headline: **142 tests**; see portfolio/REPRODUCIBILITY.md for verification)
 - `/app/backend/evals/` — AI-output quality evals (groundedness + scale-appropriateness), run on-demand
 
 ## 🔧 Local links
@@ -97,7 +100,6 @@ Generated June 2026 · Reflects code state as of iteration 14.
 1. Skim `01_HLD.md` end-to-end.
 2. Read `02_LLD.md` §3 (REST API reference) — bookmark it.
 3. Trace one full flow through `03_USER_JOURNEY.md` (recommend: Checkout).
-4. Run `cd /app/backend && pytest tests/ -v` — should be 87/87 green.
-5. Load the app on Expo Go; use the audit-token in `test_credentials.md` to
-   log in without OAuth.
+4. Follow [setup and reproduction](portfolio/REPRODUCIBILITY.md). The headline suite is **142 tests**; collection does not establish a passing run.
+5. Use the configured sign-in flow; test fixtures create temporary audit sessions for isolated test runs. Never use historical static audit tokens.
 6. Ship something small (a copy tweak or new event) and open a PR.

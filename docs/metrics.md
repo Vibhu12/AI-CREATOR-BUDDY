@@ -1,6 +1,8 @@
 # CreatorOS — Metrics Framework
 
-How we know if CreatorOS is actually working, not just being used.
+Proposed measurement framework for CreatorOS. External validation and a real-user baseline are pending.
+
+**Targets are hypotheses, not achieved results.** The quota band and quality/latency thresholds require validation. The north star counts distinct qualifying users per week; its name does not mean a raw count of action events. See [current status](portfolio/STATUS.md).
 
 ## North Star: Weekly Active Decisions
 
@@ -93,21 +95,20 @@ of the thing that actually matters (Weekly Active Decisions).
 
 ## Instrumentation status
 
-The events needed to compute the metrics above are already wired via the
+The event vocabulary needed for these metrics is accepted by the
 analytics allowlist in `backend/analytics.py`: `quota_hit`,
 `upgrade_cta_shown`, `upgrade_cta_tapped`, `checkout_started`,
 `checkout_completed`, `strategy_task_completed`, `goal_updated`,
 `goal_completed`, `recommendation_shown`, `recommendation_actioned`,
-`ai_chat_message_sent`. Weekly Active Decisions and the input metrics
-above are computable today from `db.analytics_events` — none of this
-requires new instrumentation, only a dashboard/query layer on top of data
-already being collected.
+`ai_chat_message_sent`. An allowlist does not establish end-to-end event emission. Audit client/server
+call sites and completeness, exclude demo/test accounts, then implement the
+queries/dashboard before claiming these metrics are measured.
 
 **Note on the eval groundedness guardrail:** an LLM-as-judge eval
 (`backend/evals/eval_llm_judge.py`) now exists and runs on demand. It
 surfaced a real, recurring issue — the Strategy Planner inventing
 precise-sounding but unsupported statistics — that three rounds of prompt
-tightening improved substantially but did not fully close: measured
+tightening improved substantially but did not fully close: reported by the developer
 across 6 repeated runs, simple single-asset portfolios now pass ~100% of
 the time, while complex multi-asset high-revenue portfolios still pass
 only ~33% of the time (recurring cause: derived unit-economics math with
