@@ -1,0 +1,8 @@
+evals/eval_groundedness.py::test_no_hardcoded_persona_leak
+evals/eval_groundedness.py::test_plans_differ_across_distinct_users
+evals/eval_llm_judge.py::test_llm_judge_scores_plan_acceptable[lo-Priya Solo \u2014 1 asset: 'Weekend Notes' newsletter, 640 subscribers, $480 MTD revenue.]
+evals/eval_llm_judge.py::test_llm_judge_scores_plan_acceptable[hi-Jordan Scale \u2014 2 assets: YouTube channel (2.4M subs, $142k MTD) + 'Scale Systems' cohort course ($68k MTD).]
+evals/eval_scale_appropriateness.py::test_north_star_target_within_sane_multiple[lo-480.0-100]
+evals/eval_scale_appropriateness.py::test_north_star_target_within_sane_multiple[hi-210000.0-20]
+
+6 tests collected in 0.04s

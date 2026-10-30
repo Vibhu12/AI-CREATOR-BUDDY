@@ -1,0 +1,46 @@
+name: CreatorOS portfolio checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence-and-collection:
+    runs-on: ubuntu-latest
+    env:
+      MONGO_URL: mongodb://127.0.0.1:27017
+      DB_NAME: creatoros_collection_only
+      EXPO_PUBLIC_BACKEND_URL: http://127.0.0.1:8001
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate portfolio links and Python syntax
+        run: python scripts/check_portfolio.py
+      - name: Install collection-only dependencies
+        run: python -m pip install -r backend/requirements-collection.txt
+      - name: Collect functional tests (does not execute them)
+        working-directory: backend
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m pytest tests/ --collect-only -q | tee ../collection.txt
+      - name: Collect semantic evals (does not call providers)
+        working-directory: backend
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m pytest evals/ --collect-only -q | tee ../eval-collection.txt
+      - name: Preserve collection evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: creatoros-test-collection
+          path: |
+            collection.txt
+            eval-collection.txt

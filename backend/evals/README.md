@@ -1,5 +1,12 @@
 # CreatorOS — Eval Suite
 
+> Current reproduction guide: [portfolio/REPRODUCIBILITY.md](../../docs/portfolio/REPRODUCIBILITY.md).
+> Results below are historical developer-reported observations on synthetic
+> fixtures; complete per-run outputs are not committed and this revision does
+> not claim to have reproduced the percentages. Small samples do not establish
+> reliability. A different judge model does not eliminate evaluation bias.
+
+
 This folder is **separate from `../tests/`** on purpose.
 
 - `../tests/` checks *correctness*: does the endpoint return the right

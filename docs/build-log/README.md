@@ -32,11 +32,15 @@ index).
 - **Iter 12**: PayPal mock-fallback order persistence bug (missing `order_id` field) — root-caused to a single line, fixed, re-verified 100% same session.
 - **Post-iter-18** (this session, not yet a numbered iteration): Strategy Planner was found to hardcode the demo "Maya" persona into its system prompt for every user regardless of who was signed in or what their real portfolio looked like — passed every schema/functional test because the JSON was always valid, just about the wrong business. Fixed in `backend/strategy.py` (`_build_strategy_context`), and covered going forward by `backend/evals/eval_groundedness.py`.
 
-## Running the full backend suite yourself
+## Running the current backend suite
+
+Headline suite: **142 tests**. Counts above are historical subsets, not current totals.
+Follow [the reproduction guide](../portfolio/REPRODUCIBILITY.md); tests include
+service and provider calls. Existing reports have not been rewritten.
 
 ```bash
 cd backend
 export EXPO_PUBLIC_BACKEND_URL=<your backend URL>
-pytest tests/ -v        # 107 tests, deterministic, no LLM cost
+pytest tests/ -v        # headline: 142 tests; live services/provider calls required
 pytest evals/ -v -s     # AI-output quality checks, real LLM calls, run on-demand
 ```

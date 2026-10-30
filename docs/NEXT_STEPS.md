@@ -1,11 +1,17 @@
 # CreatorOS — Next Steps Reference
 
-This file is the single source of truth for **pending work** on CreatorOS.
-Whenever starting a new session, check this file first for context before
-planning new work.
+This file retains historical session notes and backlog discussion for CreatorOS.
+Use [portfolio/STATUS.md](portfolio/STATUS.md) for the current evidence-qualified
+status before planning new work.
 
-Last updated: session covering APK login/AI-coach production bugfix +
-progress-tracking feature discussion.
+Current evidence review: **30 October 2026**. This page contains historical
+session notes below. For present status use [portfolio/STATUS.md](portfolio/STATUS.md)
+and [reproduction instructions](portfolio/REPRODUCIBILITY.md).
+
+Headline suite: **142 tests**. Earlier session counts describe historical runs.
+No new full passing run is claimed. External user validation remains pending.
+A demo-video link is now present in the main README; a permanent demo deployment
+still needs independent verification.
 
 ---
 
@@ -176,8 +182,8 @@ User was asked to pick one/more/all — awaiting confirmation before starting.
 
 - Root `/app/.gitignore` previously excluded `.env`/`.env.*`/`*.env`, which
   could strip required env vars (incl. `EMERGENT_LLM_KEY`) from production
-  deploys. **Fixed** — those exclusion lines were removed. `.env` files ARE
-  now tracked/deployed; do not re-add a blanket `.env` exclusion.
+  deploys. **Fixed** — those exclusion lines were removed. That note is superseded: real `.env` files are ignored in the current repository.
+  Commit only `.env.example` placeholders and configure deployment secrets privately.
 - Added `/app/frontend/app/auth.tsx` as the real screen for the
   `frontend://auth` Google-login deep link (previously caused an
   "Unmatched Route" error in production APK builds). Keep this file in sync

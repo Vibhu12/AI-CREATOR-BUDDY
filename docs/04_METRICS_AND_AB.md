@@ -1,5 +1,12 @@
 # CreatorOS — Evaluation Metrics & A/B Testing Framework
 
+> **Design reference, not observed results.** External validation is pending.
+> Targets, baseline examples, experiment sizes, dashboards, alerting and rollout
+> processes below are proposals unless supported in the [evidence map](portfolio/EVIDENCE.md).
+> The current proposed north star is Weekly Active Decisions in [metrics.md](metrics.md);
+> the older WAI action-count design below is retained as a different planning metric.
+> No A/B experiment or customer cohort outcome is established.
+
 Version 1.0 · June 2026 · Companion to `01_HLD.md`, `02_LLD.md`, `03_USER_JOURNEY.md`
 
 Purpose: define **what "success" means** for CreatorOS, how it is measured

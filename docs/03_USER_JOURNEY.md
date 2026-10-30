@@ -1,5 +1,10 @@
 # CreatorOS — End-to-End User Journey & Edge-Case Matrix
 
+> Historical design snapshot, not a deployment or results certificate.
+> See [current status](portfolio/STATUS.md), [evidence](portfolio/EVIDENCE.md)
+> and [reproduction](portfolio/REPRODUCIBILITY.md). The headline functional
+> suite is **142 tests**; older counts below describe earlier snapshots.
+
 Version 1.0 · June 2026 · Companion to `01_HLD.md` and `02_LLD.md`
 
 This document walks through **every screen and every interaction** for the

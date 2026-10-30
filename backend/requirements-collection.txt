@@ -1,0 +1,6 @@
+# Import/collect existing tests without starting services or installing the app.
+pytest==8.3.5
+requests==2.32.3
+httpx==0.28.1
+pymongo==4.6.3
+python-dotenv==1.0.1
